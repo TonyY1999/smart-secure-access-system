@@ -306,3 +306,10 @@ SemaphoreHandle_t GetSerialRxSemaphore(void)
 {
 	return xRxSemaphore;
 }
+
+/**
+ * @fn			LogMessage Debug
+ * @brief
+ * @note
+ */
+void LogMessageDebug(const char *format, ...) { LogMessage(LOG_DEBUG_LVL, format); };

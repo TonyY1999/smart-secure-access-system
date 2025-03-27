@@ -133,6 +133,8 @@ enum eDebugLogLevels getLogLevel(void);
  */
 SemaphoreHandle_t GetSerialRxSemaphore(void);
 
+void LogMessageDebug(const char *format, ...);
+
 /******************************************************************************
 * Local Functions
 ******************************************************************************/
