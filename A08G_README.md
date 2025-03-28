@@ -12,6 +12,9 @@
 
 ### 2.1 block diagram of the hardware setup
 
+This is is block diagram of the hardware setup:  
+![block_diagram_hardware_setup.png](images/A08G/block_diagram_hardware_setup.png)
+
 ### 2.2 photo of your hardware connections
 
 This is the hardware connection between the SAMW25 Xplained dev board, the SD card module, and the logic analyzer:  
