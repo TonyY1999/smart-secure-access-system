@@ -14,7 +14,13 @@
 
 ### 2.2 photo of your hardware connections
 
-### 2.3 screenshot of the decoded message
+This is the hardware connection between the SAMW25 Xplained dev board, the SD card module, and the logic analyzer:  
+![hardware_connection.jpg](images/A08G/hardware_connection.jpg)
+
+### 2.3 screenshot of the decoded message and capture file of the SD card communication
+
+1. This is the screenshot of the decoded message: ![decode_message.png](images/A08G/decode_message.png)
+2. This is the capture file of the SD card communication: ![SD_card_communication.png](images/A08G/SD_card_communication.png)
 
 ## 3. Bootloader Design
 
