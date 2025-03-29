@@ -37,9 +37,19 @@ After the write operation is complete, the bootloader performs a CRC32 check to 
 
 ### 3.2 flow chart of bootloader implementation
 
-Bootloader Flowchart:
+Bootloader Flowchart:  
 ![Bootloader](/images/A08G/Bootloader.png)
 
 ## 4. Bootloader Implementation
 
+Done, all source code is under Bootloader folder.
+
 ## 5. CRC checks
+
+### 5.1 well-commented firmware to the GitHub classroom assignment
+
+Done, all source code is under Bootloader folder.
+
+### 5.2 video of firmware switching when pressing the SWO button
+
+Here is the link to the demo video: [demo_video](https://drive.google.com/file/d/14KFV6SlA-HbOaJaKSZXBG05Z4El8GV7G/view?usp=drive_link)
