@@ -41,7 +41,7 @@ After the write operation is complete, the bootloader performs a CRC32 check to 
 ### 3.2 flow chart of bootloader implementation
 
 Bootloader Flowchart:  
-![Bootloader](/images/A08G/Bootloader.png)
+![Bootloader](images/A08G/Bootloader.png)
 
 ## 4. Bootloader Implementation
 
