@@ -107,22 +107,24 @@ int main(void) {
     /*END SIMPLE SD CARD MOUNTING AND TEST!*/
 
     /*3.) STARTS BOOTLOADER HERE!*/
-
-	// Check for Flag
-	char* flag_to_check = "0: FlagA.txt";  // flag that will be checked
+	
+	// Check Flag
+	char* flag_to_check = "0:FlagA.txt";  // flag that will be checked
 	char* firmware_to_flash = NULL;  // the firmware that will be flashed into MCU
-	FILINFO flag_info;  // flag information got from f_stat
-	SerialConsoleWriteString("111");
-	FRESULT f_stat_res = f_stat(flag_to_check, &flag_info);
-	SerialConsoleWriteString("222");
+	
+	
+	FILINFO flag_info;  // flag information returned from f_stat
+	char lfn_buf[256];
+	flag_info.lfname = lfn_buf;
+	flag_info.lfsize = sizeof(lfn_buf);
+	
+	FRESULT f_stat_res = f_stat(flag_to_check, &flag_info);  // check if FlagA is there or not
 	if (f_stat_res == FR_OK)
 	{
-		SerialConsoleWriteString("111");
 		firmware_to_flash = "0:FlagA.bin";
 		SerialConsoleWriteString("Found FlagA.txt, preparing to flash TestA.bin...\r\n");
 	}
 	else {
-		SerialConsoleWriteString("222");
 		flag_to_check = "0:FlagB.txt";
 		f_stat_res = f_stat(flag_to_check, &flag_info);
 		if (f_stat_res == FR_OK)
@@ -132,48 +134,56 @@ int main(void) {
 		}
 	}
 	
-	SerialConsoleWriteString(firmware_to_flash);
-	
-	// If a valid flag was found, update MCU FW with SD card FW
+	// Update MCU FW with SD card FW
 	FIL firmware_file;  // firmware file that will be opened
+	memset(&firmware_file, 0, sizeof(firmware_file));
 	
 	if (firmware_to_flash != NULL)
 	{
+		SerialConsoleWriteString("111"); // debug
+		// Open the corresponding file
 		FRESULT f_open_res = f_open(&firmware_file, firmware_to_flash, FA_READ);
+		
+		// debug
+		uint8_t buf[256];
+		snprintf(buf, 64, "res is: %d \r\n", (int)f_open_res);
+		SerialConsoleWriteString(buf);
+		
+		SerialConsoleWriteString("222"); // debug
+		SerialConsoleWriteString(firmware_to_flash); // debug
 		if (f_open_res != FR_OK)
 		{
 			SerialConsoleWriteString("ERROR: Failed to open firmware binary file.\r\n");
 			system_reset();
 		}
 		
-		// Get the firmware size
-		DWORD firmware_size = f_size(&firmware_file);
+		SerialConsoleWriteString("333"); // debug
+		DWORD firmware_size = f_size(&firmware_file);  // get the firmware size
 
 		SerialConsoleWriteString("Flashing firmware...\r\n");  // ready to flash firmware
 		
 		// Erase firmware in MCU
-		uint32_t app_start_address = APP_START_ADDRESS;  // application code start address
-		
-		for (uint32_t addr = app_start_address; addr < ((app_start_address + firmware_size) / NVMCTRL_ROW_SIZE + 1); addr += NVMCTRL_ROW_SIZE)
+		uint32_t i_des = firmware_size % NVMCTRL_ROW_SIZE == 0 ? (firmware_size / NVMCTRL_ROW_SIZE) : (firmware_size / NVMCTRL_ROW_SIZE + 1);
+		for (uint32_t i = 0; i < i_des; i++)
 		{
-			nvm_erase_row(addr);
+			nvm_erase_row(APP_START_ADDRESS + i * NVMCTRL_ROW_SIZE);
 		}
 		
 		// Write to flash
 		UINT bytes_read;  // number of bytes read
-		uint8_t page_buffer[64];  // flash page size
+		uint8_t page_buffer[NVMCTRL_PAGE_SIZE];  // flash page size
 		
-		app_start_address = APP_START_ADDRESS;
+		uint32_t app_write_address = APP_START_ADDRESS;
 		while(1) {
-			memset(page_buffer, 0xFF, sizeof(page_buffer));
-			res = f_read(&firmware_file, page_buffer, sizeof(page_buffer), &bytes_read);
+			memset(page_buffer, 0xFF, NVMCTRL_PAGE_SIZE);
+			res = f_read(&firmware_file, page_buffer, NVMCTRL_PAGE_SIZE, &bytes_read);
 			if (res != FR_OK || bytes_read == 0)
 			{
 				break;
 			}
 			
-			nvm_write_buffer(app_start_address, page_buffer, bytes_read);
-			app_start_address += bytes_read;
+			nvm_write_buffer(app_write_address, page_buffer, NVMCTRL_PAGE_SIZE);
+			app_write_address += NVMCTRL_PAGE_SIZE;
 		}
 		
 		f_close(&firmware_file);  // close the file
@@ -182,16 +192,16 @@ int main(void) {
 		
 		// CRC check to make sure FW update successful
 		uint32_t crc = 0xFFFFFFFF;
-		if (dsu_crc32_cal(app_start_address, firmware_size, &crc) != STATUS_OK)
+		if (dsu_crc32_cal(APP_START_ADDRESS, firmware_size, &crc) != STATUS_OK)
 		{
 			system_reset();
 		}
 		else {
-			if (strcmp(firmware_to_flash, "0:FlagA.bin") && (~crc) == CRC32_TESTA)
+			if (strcmp(firmware_to_flash, "0:FlagA.bin") == 0 && (~crc) == CRC32_TESTA)
 			{
 				f_unlink(flag_to_check);  // delete the flag after update firmware
 			}
-			else if (strcmp(firmware_to_flash, "0:FlagB.bin") && (~crc) == CRC32_TESTB)
+			else if (strcmp(firmware_to_flash, "0:FlagB.bin") == 0 && (~crc) == CRC32_TESTB)
 			{
 				f_unlink(flag_to_check);  // delete the flag after update firmware
 			}
@@ -247,7 +257,7 @@ static bool StartFilesystemAndTest(void) {
         // Attempt to mount a FAT file system on the SD Card using FATFS
         SerialConsoleWriteString("Mount disk (f_mount)...\r\n");
         memset(&fs, 0, sizeof(FATFS));
-        res = f_mount(LUN_ID_SD_MMC_0_MEM, &fs);   // Order FATFS Mount
+        res = f_mount(LUN_ID_SD_MMC_0_MEM, &fs);   // Order FATFS Mount		
         if (FR_INVALID_DRIVE == res) {
             LogMessage(LOG_INFO_LVL, "[FAIL] res %d\r\n", res);
             sdCardPass = false;
