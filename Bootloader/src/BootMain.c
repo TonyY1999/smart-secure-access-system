@@ -27,6 +27,8 @@
  ******************************************************************************/
 #define APP_START_ADDRESS           ((uint32_t) 0x12000)                    ///< Start of main application. Must be address of start of main application
 #define APP_START_RESET_VEC_ADDRESS (APP_START_ADDRESS + (uint32_t) 0x04)   ///< Main application reset vector address
+#define CRC32_TESTA	0x1EF640AF
+#define CRC32_TESTB	0xFFECCCF0
 
 /******************************************************************************
  * Structures and Enumerations
@@ -65,8 +67,8 @@ FIL file_object;                               // FILE OBJECT used on main for t
 *****************************************************************************/
 
 int main(void) {
-
     /*1.) INIT SYSTEM PERIPHERALS INITIALIZATION*/
+	
     system_init();
     delay_init();
     InitializeSerialConsole();
@@ -89,7 +91,7 @@ int main(void) {
     /*END SYSTEM PERIPHERALS INITIALIZATION*/
 
     /*2.) STARTS SIMPLE SD CARD MOUNTING AND TEST!*/
-
+	
     // EXAMPLE CODE ON MOUNTING THE SD CARD AND WRITING TO A FILE
     // See function inside to see how to open a file
     SerialConsoleWriteString("\x0C\n\r-- SD/MMC Card Example on FatFs --\n\r");
@@ -106,7 +108,98 @@ int main(void) {
 
     /*3.) STARTS BOOTLOADER HERE!*/
 
-    // Students - this is your mission!
+	// Check for Flag
+	char* flag_to_check = "0: FlagA.txt";  // flag that will be checked
+	char* firmware_to_flash = NULL;  // the firmware that will be flashed into MCU
+	FILINFO flag_info;  // flag information got from f_stat
+	SerialConsoleWriteString("111");
+	FRESULT f_stat_res = f_stat(flag_to_check, &flag_info);
+	SerialConsoleWriteString("222");
+	if (f_stat_res == FR_OK)
+	{
+		SerialConsoleWriteString("111");
+		firmware_to_flash = "0:FlagA.bin";
+		SerialConsoleWriteString("Found FlagA.txt, preparing to flash TestA.bin...\r\n");
+	}
+	else {
+		SerialConsoleWriteString("222");
+		flag_to_check = "0:FlagB.txt";
+		f_stat_res = f_stat(flag_to_check, &flag_info);
+		if (f_stat_res == FR_OK)
+		{
+			firmware_to_flash = "0:FlagB.bin";
+			SerialConsoleWriteString("Found FlagB.txt, preparing to flash TestB.bin...\r\n");
+		}
+	}
+	
+	SerialConsoleWriteString(firmware_to_flash);
+	
+	// If a valid flag was found, update MCU FW with SD card FW
+	FIL firmware_file;  // firmware file that will be opened
+	
+	if (firmware_to_flash != NULL)
+	{
+		FRESULT f_open_res = f_open(&firmware_file, firmware_to_flash, FA_READ);
+		if (f_open_res != FR_OK)
+		{
+			SerialConsoleWriteString("ERROR: Failed to open firmware binary file.\r\n");
+			system_reset();
+		}
+		
+		// Get the firmware size
+		DWORD firmware_size = f_size(&firmware_file);
+
+		SerialConsoleWriteString("Flashing firmware...\r\n");  // ready to flash firmware
+		
+		// Erase firmware in MCU
+		uint32_t app_start_address = APP_START_ADDRESS;  // application code start address
+		
+		for (uint32_t addr = app_start_address; addr < ((app_start_address + firmware_size) / NVMCTRL_ROW_SIZE + 1); addr += NVMCTRL_ROW_SIZE)
+		{
+			nvm_erase_row(addr);
+		}
+		
+		// Write to flash
+		UINT bytes_read;  // number of bytes read
+		uint8_t page_buffer[64];  // flash page size
+		
+		app_start_address = APP_START_ADDRESS;
+		while(1) {
+			memset(page_buffer, 0xFF, sizeof(page_buffer));
+			res = f_read(&firmware_file, page_buffer, sizeof(page_buffer), &bytes_read);
+			if (res != FR_OK || bytes_read == 0)
+			{
+				break;
+			}
+			
+			nvm_write_buffer(app_start_address, page_buffer, bytes_read);
+			app_start_address += bytes_read;
+		}
+		
+		f_close(&firmware_file);  // close the file
+		
+		SerialConsoleWriteString("Firmware update complete.\r\n"); 
+		
+		// CRC check to make sure FW update successful
+		uint32_t crc = 0xFFFFFFFF;
+		if (dsu_crc32_cal(app_start_address, firmware_size, &crc) != STATUS_OK)
+		{
+			system_reset();
+		}
+		else {
+			if (strcmp(firmware_to_flash, "0:FlagA.bin") && (~crc) == CRC32_TESTA)
+			{
+				f_unlink(flag_to_check);  // delete the flag after update firmware
+			}
+			else if (strcmp(firmware_to_flash, "0:FlagB.bin") && (~crc) == CRC32_TESTB)
+			{
+				f_unlink(flag_to_check);  // delete the flag after update firmware
+			}
+		}
+	}
+	else {
+		SerialConsoleWriteString("No update flag found. Skipping firmware update.\r\n");
+	}
 
     /* END BOOTLOADER HERE!*/
 
