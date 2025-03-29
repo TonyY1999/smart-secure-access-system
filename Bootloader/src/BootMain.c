@@ -109,55 +109,39 @@ int main(void) {
     /*3.) STARTS BOOTLOADER HERE!*/
 	
 	// Check Flag
-	char* flag_to_check = "0:FlagA.txt";  // flag that will be checked
-	char* firmware_to_flash = NULL;  // the firmware that will be flashed into MCU
-	
-	
+	char flag_to_check[] = "0:FlagA.txt";  // flag that will be checked
+	char firmware_to_flash[32] = {0};  // the firmware that will be flashed into MCU
 	FILINFO flag_info;  // flag information returned from f_stat
-	char lfn_buf[256];
-	flag_info.lfname = lfn_buf;
-	flag_info.lfsize = sizeof(lfn_buf);
 	
 	FRESULT f_stat_res = f_stat(flag_to_check, &flag_info);  // check if FlagA is there or not
 	if (f_stat_res == FR_OK)
 	{
-		firmware_to_flash = "0:FlagA.bin";
+		strcpy(firmware_to_flash, "0:TestA.bin");
 		SerialConsoleWriteString("Found FlagA.txt, preparing to flash TestA.bin...\r\n");
 	}
 	else {
-		flag_to_check = "0:FlagB.txt";
+		strcpy(flag_to_check, "0:FlagB.txt");
 		f_stat_res = f_stat(flag_to_check, &flag_info);
 		if (f_stat_res == FR_OK)
 		{
-			firmware_to_flash = "0:FlagB.bin";
+			strcpy(firmware_to_flash, "0:TestB.bin");
 			SerialConsoleWriteString("Found FlagB.txt, preparing to flash TestB.bin...\r\n");
 		}
 	}
 	
 	// Update MCU FW with SD card FW
 	FIL firmware_file;  // firmware file that will be opened
-	memset(&firmware_file, 0, sizeof(firmware_file));
-	
-	if (firmware_to_flash != NULL)
+		
+	if (firmware_to_flash != '\0')
 	{
-		SerialConsoleWriteString("111"); // debug
 		// Open the corresponding file
-		FRESULT f_open_res = f_open(&firmware_file, firmware_to_flash, FA_READ);
-		
-		// debug
-		uint8_t buf[256];
-		snprintf(buf, 64, "res is: %d \r\n", (int)f_open_res);
-		SerialConsoleWriteString(buf);
-		
-		SerialConsoleWriteString("222"); // debug
-		SerialConsoleWriteString(firmware_to_flash); // debug
+		FRESULT f_open_res = f_open(&firmware_file, (char const*)firmware_to_flash, FA_READ);
 		if (f_open_res != FR_OK)
 		{
 			SerialConsoleWriteString("ERROR: Failed to open firmware binary file.\r\n");
 			system_reset();
 		}
 		
-		SerialConsoleWriteString("333"); // debug
 		DWORD firmware_size = f_size(&firmware_file);  // get the firmware size
 
 		SerialConsoleWriteString("Flashing firmware...\r\n");  // ready to flash firmware
@@ -197,11 +181,11 @@ int main(void) {
 			system_reset();
 		}
 		else {
-			if (strcmp(firmware_to_flash, "0:FlagA.bin") == 0 && (~crc) == CRC32_TESTA)
+			if (strcmp(firmware_to_flash, "0:TestA.bin") == 0 && (~crc) == CRC32_TESTA)
 			{
 				f_unlink(flag_to_check);  // delete the flag after update firmware
 			}
-			else if (strcmp(firmware_to_flash, "0:FlagB.bin") == 0 && (~crc) == CRC32_TESTB)
+			else if (strcmp(firmware_to_flash, "0:TestB.bin") == 0 && (~crc) == CRC32_TESTB)
 			{
 				f_unlink(flag_to_check);  // delete the flag after update firmware
 			}
