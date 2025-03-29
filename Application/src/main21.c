@@ -60,10 +60,11 @@ int main(void) {
     system_init();
 
     /* Initialize the UART console. */
-    InitializeSerialConsole();
+    //InitializeSerialConsole();
 
     // Initialize trace capabilities
     vTraceEnable(TRC_START);
+	
     // Start FreeRTOS scheduler
     vTaskStartScheduler();
 
@@ -79,6 +80,7 @@ int main(void) {
  * @return           None
  */
 void vApplicationDaemonTaskStartupHook(void) {
+	InitializeSerialConsole();
     SerialConsoleWriteString("\r\n\r\n-----ESE516 Main Program-----\r\n");
 
     // Initialize HW that needs FreeRTOS Initialization
@@ -90,7 +92,7 @@ void vApplicationDaemonTaskStartupHook(void) {
     }
 
     StartTasks();
-
+	
     vTaskSuspend(daemonTaskHandle);
 }
 
