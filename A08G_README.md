@@ -8,6 +8,9 @@
 
 ## 1. Using Percepio
 
+Here is the screenshot of our Percepio trace:  
+![percepio_trace.png](images/A08G/percepio_trace.png)
+
 ## 2. Capture SD Card Comms
 
 ### 2.1 block diagram of the hardware setup
