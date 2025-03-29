@@ -29,7 +29,16 @@ This is the hardware connection between the SAMW25 Xplained dev board, the SD ca
 
 ### 3.1 describing how bootloader will work
 
+The bootloader starts by initializing the hardware and mounting the SD card using FATFS. It then checks for the presence of a specific update flag file using f_stat(). If the file is not found, the bootloader prints "No Update Flag Found" and jumps to the main application.
+
+If the update flag is found, the bootloader opens the firmware file using f_open() and checks for successful access. It then retrieves the file size using f_size() and erases the old firmware from the MCU's flash memory using nvm_erase_row(). The new firmware is written to flash in chunks using nvm_write_buffer().
+
+After the write operation is complete, the bootloader performs a CRC32 check to verify the integrity of the newly written firmware. If the calculated CRC matches the expected value, the update is considered successful. The bootloader then deletes the update flag file, deinitializes the hardware, and jumps to the main application.
+
 ### 3.2 flow chart of bootloader implementation
+
+Bootloader Flowchart:
+![Bootloader](/images/A08G/Bootloader.png)
 
 ## 4. Bootloader Implementation
 
