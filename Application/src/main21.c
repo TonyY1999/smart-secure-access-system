@@ -1,9 +1,8 @@
 /**
  * @file      main.c
- * @brief     Main application entry point
- * @author    Eduardo Garcia
- * @author    Nick M-G
- * @date      2022-04-14
+ * @brief     Main application entry point for Smart Secure Access System
+ * @author    Tony Yan & Yue Zhang
+ * @date      2025-04-06
  ******************************************************************************/
 
 /****
@@ -20,6 +19,8 @@
 #include "driver/include/m2m_wifi.h"
 #include "main.h"
 #include "stdio_serial.h"
+#include "SerialConsole/SerialConsole.h"
+#include "imu_driver/lsm6dso_reg.h"
 
 /****
  * Defines and Types
@@ -31,24 +32,56 @@
  * Local Function Declaration
  ******************************************************************************/
 void vApplicationIdleHook(void);
-//!< Initial task used to initialize HW before other tasks are initialized
-static void StartTasks(void);
-void vApplicationDaemonTaskStartupHook(void);
-
+void vApplicationTickHook(void);
 void vApplicationStackOverflowHook(void);
 void vApplicationMallocFailedHook(void);
-void vApplicationTickHook(void);
+void vApplicationDaemonTaskStartupHook(void);
+
+//!< Initial task used to initialize HW before other tasks are initialized
+static void StartTasks(void);
 
 /****
  * Variables
  ******************************************************************************/
 static TaskHandle_t cliTaskHandle = NULL;       //!< CLI task handle
 static TaskHandle_t daemonTaskHandle = NULL;    //!< Daemon task handle
-static TaskHandle_t wifiTaskHandle = NULL;      //!< Wifi task handle
+static TaskHandle_t wifiTaskHandle = NULL;      //!< WIFI task handle
 static TaskHandle_t uiTaskHandle = NULL;        //!< UI task handle
 static TaskHandle_t controlTaskHandle = NULL;   //!< Control task handle
 
 char bufferPrint[64];   ///< Buffer for daemon task
+
+// IMU task function 
+void vIMUTask(void *pvParameters)
+{
+	SerialConsoleWriteString("Initializing IMU...\r\n");
+
+	if (InitImu() != 0) {
+		SerialConsoleWriteString("IMU initialization failed!\r\n");
+		vTaskDelete(NULL);
+	}
+
+	SerialConsoleWriteString("IMU initialized successfully.\r\n");
+
+	stmdev_ctx_t *ctx = GetImuStruct();
+
+	while (1) {
+		int16_t x, y, z;
+		uint8_t data_raw_accel[6] = {0};
+
+		lsm6dso_acceleration_raw_get(ctx, data_raw_accel);
+
+		x = (int16_t)(data_raw_accel[1] << 8 | data_raw_accel[0]);
+		y = (int16_t)(data_raw_accel[3] << 8 | data_raw_accel[2]);
+		z = (int16_t)(data_raw_accel[5] << 8 | data_raw_accel[4]);
+
+		char msg[128];
+		snprintf(msg, sizeof(msg), "Accel X: %d, Y: %d, Z: %d\r\n", x, y, z);
+		SerialConsoleWriteString(msg);
+
+		vTaskDelay(pdMS_TO_TICKS(500));
+	}
+}
 
 /**
  * @brief Main application function.
@@ -58,10 +91,7 @@ char bufferPrint[64];   ///< Buffer for daemon task
 int main(void) {
     /* Initialize the board. */
     system_init();
-
-    /* Initialize the UART console. */
-    //InitializeSerialConsole();
-
+	
     // Initialize trace capabilities
     vTraceEnable(TRC_START);
 	
@@ -75,16 +105,18 @@ int main(void) {
  * function          vApplicationDaemonTaskStartupHook
  * @brief            Initialization code for all subsystems that require FreeRToS
  * @details			This function is called from the FreeRToS timer task. Any code
- *					here will be called before other tasks are initilized.
+ *					here will be called before other tasks are initialized.
  * @param[in]        None
  * @return           None
  */
 void vApplicationDaemonTaskStartupHook(void) {
+	// initialize the UART console
 	InitializeSerialConsole();
-    SerialConsoleWriteString("\r\n\r\n-----ESE516 Main Program-----\r\n");
+	
+    SerialConsoleWriteString("\r\n-----Smart Secure Access System-----\r\n");
 
-    // Initialize HW that needs FreeRTOS Initialization
-    SerialConsoleWriteString("\r\n\r\nInitialize HW...\r\n");
+    // initialize HW that needs FreeRTOS Initialization
+    SerialConsoleWriteString("Initialize I2C driver...\r\n");
     if (I2cInitializeDriver() != STATUS_OK) {
         SerialConsoleWriteString("Error initializing I2C Driver!\r\n");
     } else {
@@ -107,33 +139,39 @@ static void StartTasks(void) {
     snprintf(bufferPrint, 64, "Heap before starting tasks: %d\r\n", xPortGetFreeHeapSize());
     SerialConsoleWriteString(bufferPrint);
 
-    // Initialize Tasks here
-
+    // initialize CLI task here
     if (xTaskCreate(vCommandConsoleTask, "CLI_TASK", CLI_TASK_SIZE, NULL, CLI_PRIORITY, &cliTaskHandle) != pdPASS) {
         SerialConsoleWriteString("ERR: CLI task could not be initialized!\r\n");
     }
-
     snprintf(bufferPrint, 64, "Heap after starting CLI: %d\r\n", xPortGetFreeHeapSize());
     SerialConsoleWriteString(bufferPrint);
-
-    if (xTaskCreate(vWifiTask, "WIFI_TASK", WIFI_TASK_SIZE, NULL, WIFI_PRIORITY, &wifiTaskHandle) != pdPASS) {
-        SerialConsoleWriteString("ERR: WIFI task could not be initialized!\r\n");
-    }
-    snprintf(bufferPrint, 64, "Heap after starting WIFI: %d\r\n", xPortGetFreeHeapSize());
-    SerialConsoleWriteString(bufferPrint);
+	
+	// initialize WIFI task here
+    //if (xTaskCreate(vWifiTask, "WIFI_TASK", WIFI_TASK_SIZE, NULL, WIFI_PRIORITY, &wifiTaskHandle) != pdPASS) {
+        //SerialConsoleWriteString("ERR: WIFI task could not be initialized!\r\n");
+    //}
+    //snprintf(bufferPrint, 64, "Heap after starting WIFI: %d\r\n", xPortGetFreeHeapSize());
+    //SerialConsoleWriteString(bufferPrint);
+	
+	// initialize IMU task here
+	if (xTaskCreate(vIMUTask, "IMU_TASK", 512, NULL, 1, NULL) != pdPASS) {
+		SerialConsoleWriteString("ERR: IMU task could not be initialized!\r\n");
+	}
+	snprintf(bufferPrint, 64, "Heap after starting IMU: %d\r\n", xPortGetFreeHeapSize());
+	SerialConsoleWriteString(bufferPrint);
 }
 
 void vApplicationMallocFailedHook(void) {
     SerialConsoleWriteString("Error on memory allocation on FREERTOS!\r\n");
-    while (1)
-        ;
+    while (1);
 }
 
 void vApplicationStackOverflowHook(void) {
     SerialConsoleWriteString("Error on stack overflow on FREERTOS!\r\n");
-    while (1)
-        ;
+    while (1);
 }
 
 #include "MCHP_ATWx.h"
-void vApplicationTickHook(void) { SysTick_Handler_MQTT(); }
+void vApplicationTickHook(void) { 
+	SysTick_Handler_MQTT(); 
+}
