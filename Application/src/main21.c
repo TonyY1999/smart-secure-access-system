@@ -1,11 +1,11 @@
-/**
+/**************************************************************************//**
  * @file      main.c
  * @brief     Main application entry point for Smart Secure Access System
  * @author    Tony Yan & Yue Zhang
  * @date      2025-04-06
  ******************************************************************************/
 
-/****
+/******************************************************************************
  * Includes
  ******************************************************************************/
 #include <errno.h>
@@ -21,26 +21,15 @@
 #include "stdio_serial.h"
 #include "SerialConsole/SerialConsole.h"
 #include "imu_driver/lsm6dso_reg.h"
+#include "MCHP_ATWx.h"
 
-/****
- * Defines and Types
+/******************************************************************************
+ * Defines
  ******************************************************************************/
 #define APP_TASK_ID 0 /**< @brief ID for the application task */
 #define CLI_TASK_ID 1 /**< @brief ID for the command line interface task */
 
-/****
- * Local Function Declaration
- ******************************************************************************/
-void vApplicationIdleHook(void);
-void vApplicationTickHook(void);
-void vApplicationStackOverflowHook(void);
-void vApplicationMallocFailedHook(void);
-void vApplicationDaemonTaskStartupHook(void);
-
-//!< Initial task used to initialize HW before other tasks are initialized
-static void StartTasks(void);
-
-/****
+/******************************************************************************
  * Variables
  ******************************************************************************/
 static TaskHandle_t cliTaskHandle = NULL;       //!< CLI task handle
@@ -50,6 +39,18 @@ static TaskHandle_t uiTaskHandle = NULL;        //!< UI task handle
 static TaskHandle_t controlTaskHandle = NULL;   //!< Control task handle
 
 char bufferPrint[64];   ///< Buffer for daemon task
+
+/******************************************************************************
+ * Forward Declarations
+ ******************************************************************************/
+void vApplicationIdleHook(void);
+void vApplicationTickHook(void);
+void vApplicationStackOverflowHook(void);
+void vApplicationMallocFailedHook(void);
+void vApplicationDaemonTaskStartupHook(void);
+
+//!< Initial task used to initialize HW before other tasks are initialized
+static void StartTasks(void);
 
 // IMU task function 
 void vIMUTask(void *pvParameters)
@@ -102,12 +103,10 @@ int main(void) {
 }
 
 /**
- * function          vApplicationDaemonTaskStartupHook
- * @brief            Initialization code for all subsystems that require FreeRToS
+ * function         vApplicationDaemonTaskStartupHook
+ * @brief           Initialization code for all subsystems that require FreeRToS
  * @details			This function is called from the FreeRToS timer task. Any code
  *					here will be called before other tasks are initialized.
- * @param[in]        None
- * @return           None
  */
 void vApplicationDaemonTaskStartupHook(void) {
 	// initialize the UART console
@@ -131,9 +130,6 @@ void vApplicationDaemonTaskStartupHook(void) {
 /**
  * function          StartTasks
  * @brief            Initialize application tasks
- * @details
- * @param[in]        None
- * @return           None
  */
 static void StartTasks(void) {
     snprintf(bufferPrint, 64, "Heap before starting tasks: %d\r\n", xPortGetFreeHeapSize());
@@ -161,17 +157,28 @@ static void StartTasks(void) {
 	SerialConsoleWriteString(bufferPrint);
 }
 
+/**
+ * function          vApplicationMallocFailedHook
+ * @brief            Called when a malloc() fails in FreeRTOS. Handles memory allocation failure
+ */
 void vApplicationMallocFailedHook(void) {
     SerialConsoleWriteString("Error on memory allocation on FREERTOS!\r\n");
     while (1);
 }
 
+/**
+ * function          vApplicationStackOverflowHook
+ * @brief            Called when a stack overflow is detected in a FreeRTOS task. Handles the error
+ */
 void vApplicationStackOverflowHook(void) {
     SerialConsoleWriteString("Error on stack overflow on FREERTOS!\r\n");
     while (1);
 }
 
-#include "MCHP_ATWx.h"
+/**
+ * function          vApplicationTickHook
+ * @brief            Called from each RTOS tick interrupt. Used here to run MQTT-related SysTick handler
+ */
 void vApplicationTickHook(void) { 
 	SysTick_Handler_MQTT(); 
 }
