@@ -98,6 +98,8 @@ int adxl_read_xyz(int16_t *x, int16_t *y, int16_t *z)
     if (adxl_read(ADXL345_REG_DATAX0, data, 6) != 0) {
         return -1;
     }
+	
+	vTaskDelay(pdMS_TO_TICKS(10));
 
     *x = (int16_t)(data[1] << 8 | data[0]);
     *y = (int16_t)(data[3] << 8 | data[2]);
