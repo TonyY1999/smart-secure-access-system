@@ -20,6 +20,7 @@ Please see below PCBA photos:
 ![pcb_back.png](images/A11G/pcb_back.png)
 
 ## 2. Power System Evaluation
+
 ### 2.1 Distinct Power Modes
 
 Our device has two power sources: single cell LiPo and USB power. It has two regulators: a 3.3V buck and a 5V boost. My distinct power modes would be:
