@@ -20,7 +20,7 @@
 #include "main.h"
 #include "stdio_serial.h"
 #include "SerialConsole/SerialConsole.h"
-#include "imu_driver/lsm6dso_reg.h"
+#include "imu_driver/adxl345_imu.h"
 #include "MCHP_ATWx.h"
 
 /******************************************************************************
@@ -57,29 +57,25 @@ void vIMUTask(void *pvParameters)
 {
 	SerialConsoleWriteString("Initializing IMU...\r\n");
 
-	if (InitImu() != 0) {
+	if (adxl_init() != 0) {
 		SerialConsoleWriteString("IMU initialization failed!\r\n");
 		vTaskDelete(NULL);
 	}
 
 	SerialConsoleWriteString("IMU initialized successfully.\r\n");
-
-	stmdev_ctx_t *ctx = GetImuStruct();
-
+	
+	int16_t x, y, z;
 	while (1) {
-		int16_t x, y, z;
-		uint8_t data_raw_accel[6] = {0};
-
-		lsm6dso_acceleration_raw_get(ctx, data_raw_accel);
-
-		x = (int16_t)(data_raw_accel[1] << 8 | data_raw_accel[0]);
-		y = (int16_t)(data_raw_accel[3] << 8 | data_raw_accel[2]);
-		z = (int16_t)(data_raw_accel[5] << 8 | data_raw_accel[4]);
-
-		char msg[128];
-		snprintf(msg, sizeof(msg), "Accel X: %d, Y: %d, Z: %d\r\n", x, y, z);
-		SerialConsoleWriteString(msg);
-
+		if (adxl_read_xyz(&x, &y, &z) == 0)
+		{
+			char msg[64];
+			snprintf(msg, sizeof(msg), "Accel X: %d, Y: %d, Z: %d\r\n", x, y, z);
+			SerialConsoleWriteString(msg);
+		}
+		else {
+			SerialConsoleWriteString("Error reading ADXL345 data!\r\n");
+		}
+		
 		vTaskDelay(pdMS_TO_TICKS(500));
 	}
 }
