@@ -1,13 +1,23 @@
-# a11g-Board-Bringup
+# a11g-board-bringup
 
 * Team Number: T06
 * Team Name: Byte Crafter
 * Team Members: Tony Yan & Yue Zhang
-* GitHub Repository URL: https://github.com/ese5160/final-project-t06-byte-crafter.git
+* GitHub Repository URL: https://github.com/ese5160/final-project-t06-byte-crafter
 * Description of test hardware: ROG Zephyrus G14, HUAWEI 14
 
 ## 1. Visual Board Inspection & Photograph
 
+### 1.1 List any issues uncovered in optical inspection
+
+There is no any issues uncovered in optical inspection.
+
+### 1.2 Submit at least three light box photos of your PCBA
+
+Please see below PCBA photos:  
+![pcb_front_1.png](images/A11G/pcb_front_1.png)
+![pcb_front_2.png](images/A11G/pcb_front_2.png)
+![pcb_back.png](images/A11G/pcb_back.png)
 
 ## 2. Power System Evaluation
 
