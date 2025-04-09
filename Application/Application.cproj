@@ -1335,10 +1335,10 @@
     <Compile Include="src\I2cDriver\I2cDriver.h">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="src\imu_driver\lsm6dso_reg.c">
+    <Compile Include="src\imu_driver\adxl345_imu.c">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="src\imu_driver\lsm6dso_reg.h">
+    <Compile Include="src\imu_driver\adxl345_imu.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\secret.h">

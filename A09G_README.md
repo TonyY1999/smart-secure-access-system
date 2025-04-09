@@ -36,7 +36,7 @@
 ### 2.2 List the directory where your library code is located in your repository readme
 
 Here is the IMU library we wrote for our project:  
-[lsm6dso_reg.c](https://github.com/ese5160/final-project-t06-byte-crafter/blob/main/Application/src/imu_driver/lsm6dso_reg.c)
+[adxl345_imu.c](https://github.com/ese5160/final-project-t06-byte-crafter/blob/main/Application/src/imu_driver/adxl345_imu.c)
 
 And how to use it in main function:  
 [main21.c](https://github.com/ese5160/final-project-t06-byte-crafter/blob/main/Application/src/main21.c)
