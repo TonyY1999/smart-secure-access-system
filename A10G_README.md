@@ -8,6 +8,9 @@
 
 ## 1. OTAFU
 
+1. [fw_CLI](https://drive.google.com/file/d/1AkIwNU6J5DHiIGCX_sEbTWcL2S3Hj_37/view?usp=sharing)
+
+2. Done, codes are under Bootloader and Application files.
 
 ## 2. Golden Image
 
