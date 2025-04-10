@@ -35,7 +35,7 @@ QueueHandle_t xQueueDistanceBuffer = NULL;  ///< Queue to send the distance to t
 
 uint8_t do_download_flag = false;  // Flag that when true initializes a download. False to connect to MQTT broker
 /** File download processing state. */
-static download_state down_state = NOT_READY;
+download_state down_state = NOT_READY;
 /** SD/MMC mount. */
 static FATFS fatfs;
 /** File pointer for file download. */
@@ -67,6 +67,9 @@ static struct mqtt_module mqtt_inst;
 /* Receive buffer of the MQTT service. */
 static unsigned char mqtt_read_buffer[MAIN_MQTT_BUFFER_SIZE];
 static unsigned char mqtt_send_buffer[MAIN_MQTT_BUFFER_SIZE];
+
+volatile bool should_reset = false;
+
 
 /******************************************************************************
  * Forward Declarations
@@ -114,7 +117,7 @@ static void add_state(download_state mask)
  * \return true if this state is set, false otherwise.
  */
 
-static inline bool is_state_set(download_state mask)
+bool is_state_set(download_state mask)
 {
     return ((down_state & mask) != 0);
 }
@@ -572,8 +575,8 @@ static void configure_http_client(void)
 
     httpc_conf.recv_buffer_size = MAIN_BUFFER_MAX_SIZE;
     httpc_conf.timer_inst = &swt_module_inst;
-    httpc_conf.port = 443;
-    httpc_conf.tls = 1;
+    //httpc_conf.port = 443;
+    //httpc_conf.tls = 1;
 
     ret = http_client_init(&http_client_module_inst, &httpc_conf);
     if (ret < 0) {
@@ -884,9 +887,11 @@ static void HTTP_DownloadFileTransaction(void)
         LogMessage(LOG_INFO_LVL, "[FAIL] res %d\r\n", res);
     } else {
         SerialConsoleWriteString("FlagA.txt added!\r\n");
+		should_reset = true;
     }
 
     f_close(&file_object);
+	
     wifiStateMachine = WIFI_MQTT_INIT;
 }
 
@@ -1080,6 +1085,12 @@ void vWifiTask(void *pvParameters)
             LogMessage(LOG_DEBUG_LVL, "MQTT send %s\r\n", mqtt_msg_temp);
             isPressed = false;
         }
+		
+		 if (should_reset) {
+			 SerialConsoleWriteString("Rebooting to bootloader...\r\n");
+			 vTaskDelay(1000);
+			 system_reset();
+		 }
 
         vTaskDelay(100);
     }

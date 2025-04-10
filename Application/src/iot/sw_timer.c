@@ -33,6 +33,7 @@
 
 #include "sw_timer.h"
 
+
 /** Tick count of timer. */
 static uint32_t sw_timer_tick = 0;
 

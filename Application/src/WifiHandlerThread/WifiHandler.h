@@ -41,16 +41,18 @@ extern "C" {
 /** Wi-Fi AP Settings. */
 // Note: It is highly recommended that you save your Wi-Fi details in a separate header file, "secret.h", which is not committed to Github (added to gitignore).
 #ifndef SECRET_H_
-#define MAIN_WLAN_SSID "MyFakeAP"           /**< Destination SSID. Change to your WIFI SSID */
+#define MAIN_WLAN_SSID "iPhone"           /**< Destination SSID. Change to your WIFI SSID */
 #define MAIN_WLAN_AUTH M2M_WIFI_SEC_WPA_PSK /**< Security manner */
-#define MAIN_WLAN_PSK "MyFakePassword"      /**< Password for Destination SSID. Change to your password. Please dont hack my WiFi router */
+#define MAIN_WLAN_PSK "ZY123456789"      /**< Password for Destination SSID. Change to your password. Please dont hack my WiFi router */
 #endif                                      /* SECRET_H_ */
 
 /** IP address parsing. */
 #define IPV4_BYTE(val, index) ((val >> (index * 8)) & 0xFF)
 
 /** Content URI for download. */
-#define MAIN_HTTP_FILE_URL "http://20.231.205.203/IoT.pdf"  ///< Change me to the URL to download your OTAU binary file from!
+//#define MAIN_HTTP_FILE_URL "http://20.231.205.203/IoT.pdf"  ///< Change me to the URL to download your OTAU binary file from!
+
+#define MAIN_HTTP_FILE_URL "http://104.211.2.174/Application.bin"
 
 /** Maximum size for packet buffer. */
 #define MAIN_BUFFER_MAX_SIZE (512)
@@ -165,6 +167,9 @@ void SubscribeHandlerImuTopic(MessageData *msgData);
 void SubscribeHandlerDistanceTopic(MessageData *msgData);
 void configure_extint_channel(void);
 void configure_extint_callbacks(void);
+
+bool is_state_set(download_state mask);
+
 
 #ifdef __cplusplus
 }

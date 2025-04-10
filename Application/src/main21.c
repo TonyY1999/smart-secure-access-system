@@ -139,18 +139,18 @@ static void StartTasks(void) {
     SerialConsoleWriteString(bufferPrint);
 	
 	// initialize WIFI task here
-    //if (xTaskCreate(vWifiTask, "WIFI_TASK", WIFI_TASK_SIZE, NULL, WIFI_PRIORITY, &wifiTaskHandle) != pdPASS) {
-        //SerialConsoleWriteString("ERR: WIFI task could not be initialized!\r\n");
-    //}
-    //snprintf(bufferPrint, 64, "Heap after starting WIFI: %d\r\n", xPortGetFreeHeapSize());
-    //SerialConsoleWriteString(bufferPrint);
+    if (xTaskCreate(vWifiTask, "WIFI_TASK", WIFI_TASK_SIZE, NULL, WIFI_PRIORITY, &wifiTaskHandle) != pdPASS) {
+        SerialConsoleWriteString("ERR: WIFI task could not be initialized!\r\n");
+    }
+    snprintf(bufferPrint, 64, "Heap after starting WIFI: %d\r\n", xPortGetFreeHeapSize());
+    SerialConsoleWriteString(bufferPrint);
 	
 	// initialize IMU task here
-	if (xTaskCreate(vIMUTask, "IMU_TASK", 512, NULL, 1, NULL) != pdPASS) {
-		SerialConsoleWriteString("ERR: IMU task could not be initialized!\r\n");
-	}
-	snprintf(bufferPrint, 64, "Heap after starting IMU: %d\r\n", xPortGetFreeHeapSize());
-	SerialConsoleWriteString(bufferPrint);
+	//if (xTaskCreate(vIMUTask, "IMU_TASK", 512, NULL, 1, NULL) != pdPASS) {
+		//SerialConsoleWriteString("ERR: IMU task could not be initialized!\r\n");
+	//}
+	//snprintf(bufferPrint, 64, "Heap after starting IMU: %d\r\n", xPortGetFreeHeapSize());
+	//SerialConsoleWriteString(bufferPrint);
 }
 
 /**

@@ -7,7 +7,10 @@
 #include "CliThread.h"
 #include "I2cDriver/I2cDriver.h"
 #include "WifiHandlerThread/WifiHandler.h"
+
 #include "SerialConsole.h"
+#include "sw_timer.h"
+extern struct sw_timer_module swt_module_inst; // 只在 .c 文件里需要的话就加 extern
 
 /******************************************************************************
  * Defines
@@ -211,7 +214,10 @@ BaseType_t CLI_ResetDevice(int8_t *pcWriteBuffer, size_t xWriteBufferLen, const 
 
 BaseType_t CLI_OTAU(int8_t *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *pcCommandString)
 {
-    WifiHandlerSetState(WIFI_DOWNLOAD_INIT);
+	SerialConsoleWriteString("Triggering OTA update...\r\n");
+    // Step 1: Set WiFi handler state to start download
+	WifiHandlerSetState(WIFI_DOWNLOAD_INIT);
+	
     return pdFALSE;
 }
 
