@@ -64,6 +64,20 @@ static const CLI_Command_Definition_t xTicksCommand = {
     (const pdCOMMAND_LINE_CALLBACK)CLI_Ticks,
     0};
 	
+static const CLI_Command_Definition_t xGoldCommand = {
+	"gold",
+	"gold: Creates g_application.bin from application.bin\r\n",
+	(const pdCOMMAND_LINE_CALLBACK)CLI_Gold,
+	0};
+	
+static const CLI_Command_Definition_t xListFilesCommand = {
+	"ls",
+	"ls: Lists all files in root of SD card\r\n",
+	(const pdCOMMAND_LINE_CALLBACK)CLI_ListFiles,
+	0
+};
+
+	
 /******************************************************************************
  * Blocking Read Function for CLI
  ******************************************************************************/
@@ -93,6 +107,9 @@ void vCommandConsoleTask(void *pvParameters)
     FreeRTOS_CLIRegisterCommand(&xI2cScanCommand);
     FreeRTOS_CLIRegisterCommand(&xVersionCommand);
     FreeRTOS_CLIRegisterCommand(&xTicksCommand);
+	FreeRTOS_CLIRegisterCommand(&xGoldCommand);
+	FreeRTOS_CLIRegisterCommand(&xListFilesCommand);
+
 
     static char pcOutputString[MAX_OUTPUT_LENGTH_CLI];
     static char pcInputString[MAX_INPUT_LENGTH_CLI];
@@ -269,4 +286,95 @@ BaseType_t CLI_Ticks(char *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *
     }
 
     return pdFALSE;
+}
+
+
+BaseType_t CLI_Gold(char *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *pcCommandString)
+{
+	FIL srcFile, dstFile;
+	FRESULT res;
+	UINT bytesRead, bytesWritten;
+	uint8_t buffer[256];  //avoid stack overflow 512(x)
+
+	res = f_open(&srcFile, "0:Application.bin", FA_READ);
+	if (res != FR_OK) {
+		snprintf(pcWriteBuffer, xWriteBufferLen, "Failed to open Application.bin (%d)\r\n", res);
+		return pdFALSE;
+	}
+
+	res = f_open(&dstFile, "0:g_application.bin", FA_WRITE | FA_CREATE_ALWAYS);
+	if (res != FR_OK) {
+		f_close(&srcFile);
+		snprintf(pcWriteBuffer, xWriteBufferLen, "Failed to create g_application.bin (%d)\r\n", res);
+		return pdFALSE;
+	}
+
+	do {
+		res = f_read(&srcFile, buffer, sizeof(buffer), &bytesRead);
+		if (res != FR_OK || bytesRead == 0) break;
+
+		res = f_write(&dstFile, buffer, bytesRead, &bytesWritten);
+		snprintf(pcWriteBuffer, xWriteBufferLen, "copying...\r\n");
+		SerialConsoleWriteString(pcWriteBuffer); 
+
+		if (res != FR_OK || bytesWritten != bytesRead) break;
+		
+	} while (bytesRead > 0);
+
+	f_close(&srcFile);
+	f_close(&dstFile);
+
+	if (res == FR_OK) {
+		snprintf(pcWriteBuffer, xWriteBufferLen, "g_application.bin created successfully.\r\n");
+		} else {
+		snprintf(pcWriteBuffer, xWriteBufferLen, "Copy failed (%d)\r\n", res);
+	}
+
+	return pdFALSE;
+}
+
+BaseType_t CLI_ListFiles(char *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *pcCommandString)
+{
+	DIR dir;
+	FILINFO fno;
+	FRESULT res;
+	UINT offset = 0;
+	int fileCount = 0;
+
+	memset(pcWriteBuffer, 0, xWriteBufferLen);
+
+	res = f_opendir(&dir, "0:");
+	if (res != FR_OK) {
+		snprintf(pcWriteBuffer, xWriteBufferLen, "f_opendir failed: %d\r\n", res);
+		return pdFALSE;
+	}
+
+	while (1) {
+		res = f_readdir(&dir, &fno);
+		if (res != FR_OK || fno.fname[0] == 0) break;
+
+		if (fno.fattrib & AM_DIR) {
+			if (strncmp(fno.fname, "SYSTEM", 6) == 0 ||
+			strncmp(fno.fname, "SYSTE", 5) == 0) {
+				continue;
+			}
+			continue;
+		}
+
+		if (strncmp(fno.fname, "FOUND.", 6) == 0) continue;
+
+		offset += snprintf(pcWriteBuffer + offset, xWriteBufferLen - offset, "%s\r\n", fno.fname);
+		fileCount++;
+
+		if (offset >= xWriteBufferLen - 64) {
+			snprintf(pcWriteBuffer + offset, xWriteBufferLen - offset, "[ls truncated]\r\n");
+			break;
+		}
+	}
+
+	if (fileCount == 0) {
+		snprintf(pcWriteBuffer, xWriteBufferLen, "(no visible files)\r\n");
+	}
+
+	return pdFALSE;
 }

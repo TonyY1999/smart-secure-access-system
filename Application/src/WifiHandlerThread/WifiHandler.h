@@ -41,9 +41,9 @@ extern "C" {
 /** Wi-Fi AP Settings. */
 // Note: It is highly recommended that you save your Wi-Fi details in a separate header file, "secret.h", which is not committed to Github (added to gitignore).
 #ifndef SECRET_H_
-#define MAIN_WLAN_SSID "iPhone"           /**< Destination SSID. Change to your WIFI SSID */
+#define MAIN_WLAN_SSID "AirPennNet-Device"           /**< Destination SSID. Change to your WIFI SSID */
 #define MAIN_WLAN_AUTH M2M_WIFI_SEC_WPA_PSK /**< Security manner */
-#define MAIN_WLAN_PSK "ZY123456789"      /**< Password for Destination SSID. Change to your password. Please dont hack my WiFi router */
+#define MAIN_WLAN_PSK "penn1740wifi"      /**< Password for Destination SSID. Change to your password. Please dont hack my WiFi router */
 #endif                                      /* SECRET_H_ */
 
 /** IP address parsing. */

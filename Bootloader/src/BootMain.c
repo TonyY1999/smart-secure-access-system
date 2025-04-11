@@ -54,6 +54,9 @@ FRESULT res;                                   // Holds the result of the FATFS 
 FATFS fs;                                      // Holds the File System of the SD CARD
 FIL file_object;                               // FILE OBJECT used on main for the SD Card Test
 
+
+//__attribute__((section(".noinit"))) uint32_t fallback_flag;
+
 /******************************************************************************
 * Global Functions
 ******************************************************************************/
@@ -203,34 +206,57 @@ int main(void) {
 	//**************************************************************************
 	/*3.) STARTS A10G BOOTLOADER HERE!*/
 	
+
 	// Check Flag
 	char flag_to_check[] = "0:FlagA.txt";  // flag that will be checked
 	char firmware_to_flash[32] = {0};  // the firmware that will be flashed into MCU
+	FIL dummy_file;
 	FILINFO flag_info;  // flag information returned from f_stat
+	FIL firmware_file; 
+	//strcpy(firmware_to_flash, "0:FlagA.txt");
+	//FRESULT f_open_res = f_open(&firmware_file, (char const*)firmware_to_flash, FA_READ);
+	////FRESULT f_stat_res = f_stat(flag_to_check, &flag_info);  // check if FlagA is there or not
+	//strcpy(firmware_to_flash, "0:CRC_FAILED.txt");
+	//FRESULT f_open_res1 = f_open(&firmware_file, (char const*)firmware_to_flash, FA_READ);
 	
-	FRESULT f_stat_res = f_stat(flag_to_check, &flag_info);  // check if FlagA is there or not
-	if (f_stat_res == FR_OK)
+	FRESULT res_flagA = f_open(&dummy_file, "0:FlagA.txt", FA_READ);
+	
+	if (res_flagA == FR_OK)
 	{
 		strcpy(firmware_to_flash, "0:Application.bin");
+		f_close(&dummy_file);
 		SerialConsoleWriteString("Found FlagA.txt, preparing to flash Application.bin...\r\n");
 	}
 	else {
-		SerialConsoleWriteString("ESE5160 - EXIT BOOTLOADER");   // Order to add string to TX Buffer
-		delay_cycles_ms(100);                                    // Delay to allow print
+		
+		FRESULT res_crc_failed = f_open(&dummy_file, "0:CRC_FAILED.txt", FA_READ);
+		
+		if (res_crc_failed == FR_OK) {
+			strcpy(firmware_to_flash, "0:g_application.bin");
+			f_close(&dummy_file);
+			SerialConsoleWriteString("Found CRC_FAILED.txt, preparing to flash g_application.bin...\r\n");
+		}
+		else{
+			SerialConsoleWriteString("ESE5160 - NO FlagA.txt, NO CRC_FAILED.txt! EXIT BOOTLOADER");   // Order to add string to TX Bufferfw
+			delay_cycles_ms(100);                                    // Delay to allow print
 
-		// Deinitialize HW - deinitialize started HW here!
-		DeinitializeSerialConsole();   // Deinitializes UART
-		sd_mmc_deinit();               // Deinitialize SD CARD
+			// Deinitialize HW - deinitialize started HW here!
+			DeinitializeSerialConsole();   // Deinitializes UART
+			sd_mmc_deinit();               // Deinitialize SD CARD
 
-		// Jump to application
-		jumpToApplication();
+			// Jump to application
+			jumpToApplication();
+		}
+		
+		
 	}
 	
 	// Update MCU FW with SD card FW
-	FIL firmware_file;  // firmware file that will be opened
+	 // firmware file that will be opened
 	
 	if (firmware_to_flash != '\0')
 	{
+		
 		// Open the corresponding file
 		FRESULT f_open_res = f_open(&firmware_file, (char const*)firmware_to_flash, FA_READ);
 		if (f_open_res != FR_OK)
@@ -239,9 +265,16 @@ int main(void) {
 			system_reset();
 		}
 		
+//***************************************
+		
+		
+		
 		DWORD firmware_size = f_size(&firmware_file);  // get the firmware size
+		uint32_t firmware_length = firmware_size - 4;
 
 		SerialConsoleWriteString("Flashing firmware...\r\n");  // ready to flash firmware
+		
+		
 		
 		// Erase firmware in MCU
 		uint32_t i_des = firmware_size % NVMCTRL_ROW_SIZE == 0 ? (firmware_size / NVMCTRL_ROW_SIZE) : (firmware_size / NVMCTRL_ROW_SIZE + 1);
@@ -267,20 +300,59 @@ int main(void) {
 			app_write_address += NVMCTRL_PAGE_SIZE;
 		}
 		
+		uint32_t stored_crc;
+		memcpy(&stored_crc, (uint8_t*)(APP_START_ADDRESS + firmware_length), 4);
+		
 		f_close(&firmware_file);  // close the file
+		
+		//FIL fail_flag_file;
+		//FRESULT res_flag = f_open(&fail_flag_file, "0:CRC_FAILED.txt", FA_WRITE | FA_CREATE_ALWAYS);
+		//if (res_flag != FR_OK) {
+			//system_reset();
+		//}
+		//f_close(&fail_flag_file);
+		//SerialConsoleWriteString("Create CRC_FAILED.txt in SD card0.\r\n");
 		
 		SerialConsoleWriteString("Firmware update complete.\r\n");
 		
 		// CRC check to make sure FW update successful
 		uint32_t crc = 0xFFFFFFFF;
-		if (dsu_crc32_cal(APP_START_ADDRESS, firmware_size, &crc) != STATUS_OK)
+
+		if (dsu_crc32_cal(APP_START_ADDRESS, firmware_length, &crc) != STATUS_OK)
 		{
 			system_reset();
 		}
 		else {
-			if (strcmp(firmware_to_flash, "0:Application.bin") == 0 )//&& (~crc) == CRC32_TESTA
+			if ((~crc) == stored_crc)
 			{
+				char crc_buf[128];
+				sprintf(crc_buf, "Stored CRC: 0x%08X, Calculated CRC: 0x%08X\r\n", stored_crc, ~crc);
+				SerialConsoleWriteString(crc_buf);
+				SerialConsoleWriteString("CRC correct, Jump to Application.\r\n");
 				f_unlink(flag_to_check);  // delete the flag after update firmware
+				f_unlink("0:CRC_FAILED.txt");//// delete the CRC failed flag after update right firmware
+
+				
+			}else{
+				
+				char crc_buf[128];
+				sprintf(crc_buf, "Stored CRC: 0x%08X, Calculated CRC: 0x%08X\r\n", stored_crc, ~crc);
+				SerialConsoleWriteString(crc_buf);
+
+				SerialConsoleWriteString("CRC failed! Flashing golden image...\r\n");
+				
+				f_unlink(flag_to_check);  // delete the flag after update firmware FlagA
+				
+				FIL fail_flag_file;
+				FRESULT res_flag = f_open(&fail_flag_file, "0:CRC_FAILED.txt", FA_CREATE_ALWAYS | FA_WRITE);
+				if (res_flag != FR_OK) {
+					f_close(&fail_flag_file);
+					system_reset();
+				}
+				f_close(&fail_flag_file);
+				SerialConsoleWriteString("Create CRC_FAILED.txt in SD card.\r\n");
+				system_reset();
+				
 			}
 			
 		}
