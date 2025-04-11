@@ -95,4 +95,22 @@ The image was captured while the 5V power rail on the PCBA was under a 1.2A cons
 
 ## 3. Programming
 
+### 3.1 Submit a photo of your programmer attached to the PCBA
+
+![JLink_attached_to_PCBA.png](images/A11G/JLink_attached_to_PCBA.png)
+
+### 3.2 Submit a screenshot of your device signature and target voltage from the device programming window
+
+![device_programming_window.png](images/A11G/device_programming_window.png)
+
+### 3.3
+
+Didn't get any issues.
+
 ## 4. Peripheral Evaluation
+
+### 4.1 Submit videos / GIFs of your peripherals working on your PCBA
+
+1. 
+
+### 4.2 List any issues encountered
