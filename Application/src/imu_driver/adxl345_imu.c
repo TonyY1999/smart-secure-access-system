@@ -74,6 +74,7 @@ int adxl_read(uint8_t reg, uint8_t *buf, uint8_t len)
 int adxl_init(void)
 {
     uint8_t id = 0;
+	//int res = adxl_read(ADXL345_REG_DEVID, &id, 1);
     if (adxl_read(ADXL345_REG_DEVID, &id, 1) != 0 || id != 0xE5) {
         SerialConsoleWriteString("[ADXL345] Device not found or ID mismatch\r\n");
         return -1;

@@ -8,19 +8,19 @@
 /******************************************************************************
  * Includes
  ******************************************************************************/
-#include <errno.h>
+ #include <errno.h>
 
-#include "CliThread/CliThread.h"
-#include "FreeRTOS.h"
-#include "I2cDriver\I2cDriver.h"
-#include "SerialConsole.h"
-#include "WifiHandlerThread/WifiHandler.h"
-#include "asf.h"
-#include "driver/include/m2m_wifi.h"
-#include "main.h"
-#include "stdio_serial.h"
-#include "SerialConsole/SerialConsole.h"
-#include "imu_driver/adxl345_imu.h"
+ #include "CliThread/CliThread.h"
+ #include "FreeRTOS.h"
+ #include "I2cDriver\I2cDriver.h"
+ #include "SerialConsole.h"
+ #include "WifiHandlerThread/WifiHandler.h"
+ #include "asf.h"
+ #include "driver/include/m2m_wifi.h"
+ #include "main.h"
+ #include "stdio_serial.h"
+ #include "SerialConsole/SerialConsole.h"
+ #include "imu_driver/adxl345_imu.h"
 #include "MCHP_ATWx.h"
 
 /******************************************************************************
@@ -81,8 +81,11 @@ void vIMUTask(void *pvParameters)
 }
 
 
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> 88ff6e6f65c2c7b3c6abed3dee3c6974f110482d
 /**
  * @brief Main application function.
  * Application entry point.
@@ -97,7 +100,7 @@ int main(void) {
 	
     // Start FreeRTOS scheduler
     vTaskStartScheduler();
-
+	
     return 0;   // Will not get here
 }
 
@@ -126,6 +129,32 @@ void vApplicationDaemonTaskStartupHook(void) {
     vTaskSuspend(daemonTaskHandle);
 }
 
+
+void vLEDTask(void *pvParameters) {
+	struct port_config led_pin, button_pin;
+	port_get_config_defaults(&led_pin);
+	port_get_config_defaults(&button_pin);
+	
+	led_pin.direction = PORT_PIN_DIR_OUTPUT;
+	button_pin.direction = PORT_PIN_DIR_INPUT;
+	button_pin.input_pull = PORT_PIN_PULL_UP;
+	
+	port_pin_set_output_level(PIN_PA23, false);
+	
+	port_pin_set_config(PIN_PA23, &led_pin);
+	port_pin_set_config(PIN_PB23, &button_pin);
+	
+	while(1) {
+		if (port_pin_get_input_level(PIN_PB23) == true)
+		{
+			port_pin_set_output_level(PIN_PA23, true);
+		}
+		else {
+			port_pin_set_output_level(PIN_PA23, false);
+		}
+	}
+}
+
 /**
  * function          StartTasks
  * @brief            Initialize application tasks
@@ -140,20 +169,22 @@ static void StartTasks(void) {
     }
     snprintf(bufferPrint, 64, "Heap after starting CLI: %d\r\n", xPortGetFreeHeapSize());
     SerialConsoleWriteString(bufferPrint);
-	
-	// initialize WIFI task here
-    if (xTaskCreate(vWifiTask, "WIFI_TASK", WIFI_TASK_SIZE, NULL, WIFI_PRIORITY, &wifiTaskHandle) != pdPASS) {
-        SerialConsoleWriteString("ERR: WIFI task could not be initialized!\r\n");
-    }
-    snprintf(bufferPrint, 64, "Heap after starting WIFI: %d\r\n", xPortGetFreeHeapSize());
-    SerialConsoleWriteString(bufferPrint);
+	//
+	//// initialize WIFI task here
+    //if (xTaskCreate(vWifiTask, "WIFI_TASK", WIFI_TASK_SIZE, NULL, WIFI_PRIORITY, &wifiTaskHandle) != pdPASS) {
+        //SerialConsoleWriteString("ERR: WIFI task could not be initialized!\r\n");
+    //}
+    //snprintf(bufferPrint, 64, "Heap after starting WIFI: %d\r\n", xPortGetFreeHeapSize());
+    //SerialConsoleWriteString(bufferPrint);
 	
 	// initialize IMU task here
-	//if (xTaskCreate(vIMUTask, "IMU_TASK", 512, NULL, 1, NULL) != pdPASS) {
-		//SerialConsoleWriteString("ERR: IMU task could not be initialized!\r\n");
-	//}
-	//snprintf(bufferPrint, 64, "Heap after starting IMU: %d\r\n", xPortGetFreeHeapSize());
-	//SerialConsoleWriteString(bufferPrint);
+	if (xTaskCreate(vIMUTask, "IMU_TASK", 512, NULL, 1, NULL) != pdPASS) {
+		SerialConsoleWriteString("ERR: IMU task could not be initialized!\r\n");
+	}
+	snprintf(bufferPrint, 64, "Heap after starting IMU: %d\r\n", xPortGetFreeHeapSize());
+	SerialConsoleWriteString(bufferPrint);
+	
+	//xTaskCreate(vLEDTask,"LED_TASK", 256, NULL, 1, NULL );
 }
 
 /**
