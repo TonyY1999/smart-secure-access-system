@@ -1,5 +1,3 @@
-
-
 /**************************************************************************//**
 * @file      template.c
 * @brief     Template for ESE516 with Doxygen-style comments
@@ -31,10 +29,6 @@ void SysTick_Handler(void);
 /******************************************************************************
 * Function Definitions
 ******************************************************************************/
-
-
-
-
 /**************************************************************************//**
 * @fn		void InitSystick(void)
 * @brief	Initializes the Systick timer. Useful to measure lengths of time.
@@ -44,7 +38,6 @@ void SysTick_Handler(void);
 *****************************************************************************/
 void InitSystick(void)
 {
-
 	// Configure SysTick to trigger every millisecond using the CPU Clock
 	SysTick->CTRL = 0;					// Disable SysTick
 	SysTick->LOAD = 999UL;				// Set reload register for 1mS interrupts
@@ -72,8 +65,6 @@ uint32_t GetSystick(void)
 /******************************************************************************
 * Callback Functions
 ******************************************************************************/
-
-
 /*******************************************************************************
  * Function:        void SysTick_Handler(void)
  *
