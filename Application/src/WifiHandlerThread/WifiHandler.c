@@ -79,6 +79,8 @@ static void MQTT_HandleGameMessages(void);
 static void MQTT_HandleImuMessages(void);
 static void HTTP_DownloadFileInit(void);
 static void HTTP_DownloadFileTransaction(void);
+
+static void MQTT_HandleButtonMessages(void);
 /******************************************************************************
  * Callback Functions
  ******************************************************************************/
@@ -647,6 +649,20 @@ void SubscribeHandlerLedTopic(MessageData *msgData)
     }
 }
 
+void SubscribeHandlerBoolLed(MessageData *msgData)
+{
+	if (strncmp(msgData->message->payload, "true", 4) == 0) {
+		// turn LED on
+		port_pin_set_output_level(LED_0_PIN, LED_0_ACTIVE);  // 或你自己的 LED 控制
+		LogMessage(LOG_DEBUG_LVL, "LED turned ON\r\n");
+	}
+	else {
+		// turn LED off
+		port_pin_set_output_level(LED_0_PIN, !LED_0_ACTIVE);
+		LogMessage(LOG_DEBUG_LVL, "LED turned OFF\r\n");
+	}
+}
+
 void SubscribeHandlerGameTopic(MessageData *msgData)
 {
     struct GameDataPacket game;
@@ -748,6 +764,9 @@ static void mqtt_callback(struct mqtt_module *module_inst, int type, union mqtt_
                 mqtt_subscribe(module_inst, GAME_TOPIC_IN, 2, SubscribeHandlerGameTopic);
                 mqtt_subscribe(module_inst, LED_TOPIC, 2, SubscribeHandlerLedTopic);
                 mqtt_subscribe(module_inst, IMU_TOPIC, 2, SubscribeHandlerImuTopic);
+				mqtt_subscribe(module_inst, "a10g/debug/led", 2, SubscribeHandlerBoolLed);
+				
+
                 /* Enable USART receiving callback. */
 
                 LogMessage(LOG_DEBUG_LVL, "MQTT Connected\r\n");
@@ -936,6 +955,7 @@ static void MQTT_HandleTransactions(void)
     // Check if data has to be sent!
     MQTT_HandleGameMessages();
     MQTT_HandleImuMessages();
+	MQTT_HandleButtonMessages();
 
     // Handle MQTT messages
     if (mqtt_inst.isConnected) mqtt_yield(&mqtt_inst, 100);
@@ -974,6 +994,21 @@ static void MQTT_HandleGameMessages(void)
         mqtt_publish(&mqtt_inst, GAME_TOPIC_OUT, mqtt_msg, strlen(mqtt_msg), 1, 0);
     }
 }
+
+static void MQTT_HandleButtonMessages(void)
+{
+	static bool last_state = false;
+	bool sw0_pressed = port_pin_get_input_level(BUTTON_0_PIN) == false;
+
+	if (sw0_pressed != last_state)
+	{
+		last_state = sw0_pressed;
+		const char *payload = sw0_pressed ? "true" : "false";
+		mqtt_publish(&mqtt_inst, "a10g/ui/debug_led", payload, strlen(payload), 2, 0);
+		LogMessage(LOG_DEBUG_LVL, "Sent button state: %s\r\n", payload);
+	}
+}
+
 /**
  * \brief Main application function.
  *

@@ -80,6 +80,9 @@ void vIMUTask(void *pvParameters)
 	}
 }
 
+
+
+
 /**
  * @brief Main application function.
  * Application entry point.
