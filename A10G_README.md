@@ -43,20 +43,56 @@ Our system integrates a fingerprint scanner and a motor-controlled door to manag
         - If the door is open, the cloud assumes the user wants to access the LCD display, and sends back permission to proceed.
         - If the door is closed, the cloud assumes the user intends to unlock the door, and sends back permission to open it.
 
+
 ### 3.2 All MQTT Topics
+
+| **Topic Name**              | **Direction**         | **Payload Format**                                                | **Description**                                                                                      |
+|-----------------------------|------------------------|--------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|
+| `a10g/access/request`       | Device → Cloud         | `{ "finger_id": int, "door_open": bool }`                          | Sent from the MCU to the cloud when a fingerprint is scanned. Indicates which finger and door state. |
+| `a10g/access/response`      | Cloud → Device         | `{ "access_granted": bool, "operation": "door" \| "lcd" }`         | Response from the cloud indicating whether access is granted and what type of operation to allow.   |
+| `a10g/alert/duress`         | Cloud → Dashboard UI   | `"Duress fingerprint detected!"`                                   | Alert message when a duress fingerprint is detected. No response is sent back to the device.         |
+| `a10g/register/fingerprint` | Device → Cloud         | `{ "new_finger_id": int, "user_name": string }`                    | Sent during fingerprint enrollment. Used to update cloud-side fingerprint records.                   |
+
 
 
 ### 3.3 Describe for Each Topic
 
+| **Topic Name**               | **Published By**        | **Subscribed By**             |
+|-----------------------------|--------------------------|-------------------------------|
+| `a10g/access/request`       | Device (MCU)             | Cloud (Node-RED)              |
+| `a10g/access/response`      | Cloud (Node-RED)         | Device (MCU)                  |
+| `a10g/alert/duress`         | Cloud (Node-RED)         | Web Dashboard / Alert Client |
+| `a10g/register/fingerprint` | Device (MCU)             | Cloud (Node-RED)              |
 
 ### 3.4 Divide MCU Application Code into Threads
 
+**Thread Responsibilities:**
+| Thread Name           | Responsibility                                                                 |
+|-----------------------|---------------------------------------------------------------------------------|
+| `FingerprintThread`   | Scans fingerprint and sends result (finger ID, door state) to `MQTTClientThread`. |
+| `MQTTClientThread`    | Handles MQTT communication. Publishes fingerprint data, receives access decisions from cloud. |
+| `AccessControlThread` | Acts on cloud decisions: unlocks door or enables LCD based on received operation. |
+| `RegistrationThread`  | Handles fingerprint enrollment: captures new fingerprint and sends data to cloud. |
 
+**Inter-Thread Communication:**
+| From                  | To                    | Data/Trigger                                                  | Method          |
+|-----------------------|------------------------|---------------------------------------------------------------|-----------------|
+| `FingerprintThread`   | `MQTTClientThread`     | `{ "finger_id": int, "door_open": bool }`                     | Queue           |
+| `MQTTClientThread`    | `AccessControlThread`  | `{ "access_granted": bool, "operation": "door" \| "lcd" }`    | Queue or flags  |
+| `AccessControlThread` | `RegistrationThread`   | Local flag or signal to begin enrollment                      | Semaphore/Event |
 
 ## 4. Bidirectional Cloud Communication
 
+1. [Bidirectional_Cloud_Communication](https://drive.google.com/file/d/1v-Nby18BvzXBgqDTXp8fBck5pqPXnUZp/view?usp=sharing)
+
+2. [Node-RED Source Code](/Node-RED/flows.json)
+
+3. [Node-RED UI](http:104.211.2.174:1880/ui)
+
+4. Done, codes are under WifiHandler.c
 
 ## 5. Node-RED Implementation
+
 
 
 ## 6. Percepio Analysis

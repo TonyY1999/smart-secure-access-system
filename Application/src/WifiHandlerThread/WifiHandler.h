@@ -116,6 +116,7 @@ struct RgbColorPacket {
 #define DISTANCE_TOPIC "P1_DISTANCE_ESE516_T0"        // Students to change to an unique identifier for each device! Distance Data
 #define TEMPERATURE_TOPIC "P1_TEMPERATURE_ESE516_T0"  // Students to change to an unique identifier for each device! Distance Data
 
+
 #else
 /* Chat MQTT topic. */
 #define LED_TOPIC "P2_LED_ESE516_T0"                  // Students to change to an unique identifier for each device! LED Data
@@ -142,7 +143,7 @@ struct RgbColorPacket {
  * A MQTT broker server which was connected.
  * m2m.eclipse.org is public MQTT broker.
  */
-static const char main_mqtt_broker[] = "broker.hivemq.com";
+static const char main_mqtt_broker[] = "104.211.2.174";
 
 #define STRING_EOL "\r\n"
 #define STRING_HEADER                                                                 \
@@ -170,6 +171,8 @@ void SubscribeHandlerImuTopic(MessageData *msgData);
 void SubscribeHandlerDistanceTopic(MessageData *msgData);
 void configure_extint_channel(void);
 void configure_extint_callbacks(void);
+
+void SubscribeHandlerBoolLed(MessageData *msgData);
 
 bool is_state_set(download_state mask);
 
