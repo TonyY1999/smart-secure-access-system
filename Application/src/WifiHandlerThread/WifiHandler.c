@@ -1022,6 +1022,34 @@ void vWifiTask(void *pvParameters)
     /* Initialize Wi-Fi driver with data and status callbacks. */
     param.pfAppWifiCb = wifi_cb;
     ret = m2m_wifi_init(&param);
+	
+	// debug
+//tstrM2mRev fw;
+//sint8 res = nm_get_firmware_full_info(&fw);
+//
+//if (res == M2M_SUCCESS || res == M2M_ERR_FW_VER_MISMATCH) {
+	//char msg[256];
+	//snprintf(msg, sizeof(msg),
+	//"FW Version   : %u.%u.%u\r\n"
+	//"DRV Version  : %u.%u.%u\r\n"
+	//"SVN          : %u\r\n"
+	//"Build Date   : %s\r\n"
+	//"Build Time   : %s\r\n"
+	//"Chip ID      : 0x%08X\r\n",
+	//fw.u8FirmwareMajor, fw.u8FirmwareMinor, fw.u8FirmwarePatch,
+	//fw.u8DriverMajor, fw.u8DriverMinor, fw.u8DriverPatch,
+	//fw.u16FirmwareSvnNum,
+	//fw.BuildDate,
+	//fw.BuildTime,
+	//fw.u32Chipid);
+//
+	//SerialConsoleWriteString(msg);
+	//} else {
+	//SerialConsoleWriteString("Failed to read firmware version!\r\n");
+//}
+	
+	
+	
     if (M2M_SUCCESS != ret) {
         LogMessage(LOG_DEBUG_LVL, "main: m2m_wifi_init call error! (res %d)\r\n", ret);
         while (1) {

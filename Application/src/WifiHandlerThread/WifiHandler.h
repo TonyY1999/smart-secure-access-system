@@ -29,7 +29,6 @@ extern "C" {
 /******************************************************************************
  * Defines
  ******************************************************************************/
-
 #define WIFI_MQTT_INIT 0        ///< State for Wifi handler to Initialize MQTT Connection
 #define WIFI_MQTT_HANDLE 1      ///< State for Wifi handler to Handle MQTT Connection
 #define WIFI_DOWNLOAD_INIT 2    ///< State for Wifi handler to Initialize Download Connection
@@ -41,9 +40,13 @@ extern "C" {
 /** Wi-Fi AP Settings. */
 // Note: It is highly recommended that you save your Wi-Fi details in a separate header file, "secret.h", which is not committed to Github (added to gitignore).
 #ifndef SECRET_H_
-#define MAIN_WLAN_SSID "AirPennNet-Device"           /**< Destination SSID. Change to your WIFI SSID */
+//#define MAIN_WLAN_SSID "AirPennNet-Device"           /**< Destination SSID. Change to your WIFI SSID */
+//#define MAIN_WLAN_PSK "penn1740wifi"      /**< Password for Destination SSID. Change to your password. Please dont hack my WiFi router */
+
+#define MAIN_WLAN_SSID "WhiteSky-Sansom"     
+#define MAIN_WLAN_PSK "2sntqbnm"
+
 #define MAIN_WLAN_AUTH M2M_WIFI_SEC_WPA_PSK /**< Security manner */
-#define MAIN_WLAN_PSK "penn1740wifi"      /**< Password for Destination SSID. Change to your password. Please dont hack my WiFi router */
 #endif                                      /* SECRET_H_ */
 
 /** IP address parsing. */
