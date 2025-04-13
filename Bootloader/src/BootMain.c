@@ -54,9 +54,6 @@ FRESULT res;                                   // Holds the result of the FATFS 
 FATFS fs;                                      // Holds the File System of the SD CARD
 FIL file_object;                               // FILE OBJECT used on main for the SD Card Test
 
-
-//__attribute__((section(".noinit"))) uint32_t fallback_flag;
-
 /******************************************************************************
 * Global Functions
 ******************************************************************************/
@@ -206,7 +203,6 @@ int main(void) {
 	//**************************************************************************
 	/*3.) STARTS A10G BOOTLOADER HERE!*/
 	
-
 	// Check Flag
 	char flag_to_check[] = "0:FlagA.txt";  // flag that will be checked
 	char firmware_to_flash[32] = {0};  // the firmware that will be flashed into MCU
@@ -246,17 +242,13 @@ int main(void) {
 
 			// Jump to application
 			jumpToApplication();
-		}
-		
-		
+		}	
 	}
 	
 	// Update MCU FW with SD card FW
-	 // firmware file that will be opened
-	
+	// firmware file that will be opened	
 	if (firmware_to_flash != '\0')
 	{
-		
 		// Open the corresponding file
 		FRESULT f_open_res = f_open(&firmware_file, (char const*)firmware_to_flash, FA_READ);
 		if (f_open_res != FR_OK)
@@ -264,17 +256,11 @@ int main(void) {
 			SerialConsoleWriteString("ERROR: Failed to open firmware binary file.\r\n");
 			system_reset();
 		}
-		
-//***************************************
-		
-		
-		
+			
 		DWORD firmware_size = f_size(&firmware_file);  // get the firmware size
 		uint32_t firmware_length = firmware_size - 4;
 
 		SerialConsoleWriteString("Flashing firmware...\r\n");  // ready to flash firmware
-		
-		
 		
 		// Erase firmware in MCU
 		uint32_t i_des = firmware_size % NVMCTRL_ROW_SIZE == 0 ? (firmware_size / NVMCTRL_ROW_SIZE) : (firmware_size / NVMCTRL_ROW_SIZE + 1);
@@ -323,18 +309,15 @@ int main(void) {
 			system_reset();
 		}
 		else {
-			if ((~crc) == stored_crc)
-			{
+			if ((~crc) == stored_crc) {
 				char crc_buf[128];
 				sprintf(crc_buf, "Stored CRC: 0x%08X, Calculated CRC: 0x%08X\r\n", stored_crc, ~crc);
 				SerialConsoleWriteString(crc_buf);
 				SerialConsoleWriteString("CRC correct, Jump to Application.\r\n");
 				f_unlink(flag_to_check);  // delete the flag after update firmware
-				f_unlink("0:CRC_FAILED.txt");//// delete the CRC failed flag after update right firmware
-
-				
-			}else{
-				
+				f_unlink("0:CRC_FAILED.txt");//// delete the CRC failed flag after update right firmware			
+			}
+			else {
 				char crc_buf[128];
 				sprintf(crc_buf, "Stored CRC: 0x%08X, Calculated CRC: 0x%08X\r\n", stored_crc, ~crc);
 				SerialConsoleWriteString(crc_buf);
@@ -351,8 +334,7 @@ int main(void) {
 				}
 				f_close(&fail_flag_file);
 				SerialConsoleWriteString("Create CRC_FAILED.txt in SD card.\r\n");
-				system_reset();
-				
+				system_reset();	
 			}
 			
 		}
