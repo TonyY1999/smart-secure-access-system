@@ -26,34 +26,29 @@
 
 Our system integrates a fingerprint scanner and a motor-controlled door to manage both physical access and secure interaction with the LCD display. The system communicates with the cloud to make access decisions based on fingerprint identity and door state.
 
-1. Fingerprint Scanning Triggered:
-    1. When a user places their finger on the fingerprint scanner, the system captures the fingerprint ID. Simultaneously, it checks the current state of the door (open or closed). Both the fingerprint ID and the door state are sent to the cloud.
+1. Fingerprint Scanning Triggered:  
+When a user places their finger on the fingerprint scanner, the system captures the fingerprint ID. Simultaneously, it checks the current state of the door (open or closed). Both the fingerprint ID and the door state are sent to the cloud.
 
-2. Cloud Processing:    
-    1. The cloud uses the fingerprint ID to:
-         - Determine whether it is a registered normal fingerprint or a registered duress fingerprint.
-
-         - Use the accompanying door state to help infer the user's intention if the fingerprint is normal.
+2. Cloud Processing:
+   1. The cloud uses the fingerprint ID to:
+      1. Determine whether it is a registered normal fingerprint or a registered duress fingerprint.
+      2. Use the accompanying door state to help infer the user's intention if the fingerprint is normal.
 
 3. Cloud Response:
-    1. If it is a duress fingerprint:
-        - The cloud immediately issues an alarm, regardless of whether the door is open or closed.
+   1. If it is a duress fingerprint:
+      1. The cloud immediately issues an alarm, regardless of whether the door is open or closed.
+   2. If it is a normal fingerprint:
+      1. If the door is open, the cloud assumes the user wants to access the LCD display, and sends back permission to proceed.
+      2. If the door is closed, the cloud assumes the user intends to unlock the door, and sends back permission to open it.
 
-    2. If it is a normal fingerprint:
-        - If the door is open, the cloud assumes the user wants to access the LCD display, and sends back permission to proceed.
-        - If the door is closed, the cloud assumes the user intends to unlock the door, and sends back permission to open it.
+### 3.2 List all the Topics System will Use
 
-
-### 3.2 All MQTT Topics
-
-| **Topic Name**              | **Direction**         | **Payload Format**                                                | **Description**                                                                                      |
-|-----------------------------|------------------------|--------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|
+| **Topic Name**              | **Direction**          | **Payload Format**       | **Description** |
+|-----------------------------|------------------------|--------------------------|------------------|
 | `a10g/access/request`       | Device → Cloud         | `{ "finger_id": int, "door_open": bool }`                          | Sent from the MCU to the cloud when a fingerprint is scanned. Indicates which finger and door state. |
 | `a10g/access/response`      | Cloud → Device         | `{ "access_granted": bool, "operation": "door" \| "lcd" }`         | Response from the cloud indicating whether access is granted and what type of operation to allow.   |
 | `a10g/alert/duress`         | Cloud → Dashboard UI   | `"Duress fingerprint detected!"`                                   | Alert message when a duress fingerprint is detected. No response is sent back to the device.         |
 | `a10g/register/fingerprint` | Device → Cloud         | `{ "new_finger_id": int, "user_name": string }`                    | Sent during fingerprint enrollment. Used to update cloud-side fingerprint records.                   |
-
-
 
 ### 3.3 Describe for Each Topic
 
@@ -67,6 +62,7 @@ Our system integrates a fingerprint scanner and a motor-controlled door to manag
 ### 3.4 Divide MCU Application Code into Threads
 
 **Thread Responsibilities:**
+
 | Thread Name           | Responsibility                                                                 |
 |-----------------------|---------------------------------------------------------------------------------|
 | `FingerprintThread`   | Scans fingerprint and sends result (finger ID, door state) to `MQTTClientThread`. |
@@ -75,6 +71,7 @@ Our system integrates a fingerprint scanner and a motor-controlled door to manag
 | `RegistrationThread`  | Handles fingerprint enrollment: captures new fingerprint and sends data to cloud. |
 
 **Inter-Thread Communication:**
+
 | From                  | To                    | Data/Trigger                                                  | Method          |
 |-----------------------|------------------------|---------------------------------------------------------------|-----------------|
 | `FingerprintThread`   | `MQTTClientThread`     | `{ "finger_id": int, "door_open": bool }`                     | Queue           |
@@ -89,10 +86,8 @@ Our system integrates a fingerprint scanner and a motor-controlled door to manag
 
 3. [Node-RED UI](http:104.211.2.174:1880/ui)
 
-4. Done, codes are under WifiHandler.c
+4. Done, code is in WifiHandler.c
 
 ## 5. Node-RED Implementation
-
-
 
 ## 6. Percepio Analysis
