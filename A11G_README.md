@@ -111,6 +111,12 @@ Didn't get any issues.
 
 ### 4.1 Submit videos / GIFs of your peripherals working on your PCBA
 
-1. 
+1. Debug LED: [debug_LED](https://drive.google.com/file/d/1UypzOzzIQpMQeW5kbZ6oN14ip_G_ZvD8/view?usp=drive_link)
+2. Debug Button: [debug_button](https://drive.google.com/file/d/1Mxt_yujvpV8f2Mj9pkXgU-txoSJIhMoB/view?usp=drive_link)
+3. UART Communication: [UART_communication](https://drive.google.com/file/d/1FmZcgt86Mc7GPZROUGG6RUGilZ8QFKyJ/view?usp=drive_link)
+4. Non-volatile Memory (SD Card): []()
+5. I2C Device: [I2C_device](https://drive.google.com/file/d/1PYLPo5pfAXS1OL1rAU4TqK_AiPrdUUKx/view?usp=drive_link)
 
 ### 4.2 List any issues encountered
+
+Didn't really encountered any issues during the testing.
