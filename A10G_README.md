@@ -58,27 +58,31 @@ When a user places their finger on the fingerprint scanner, the system captures 
 |-----------------------------|--------------------------|-------------------------------|
 | `a10g/access/request`       | Device (MCU)             | Cloud (Node-RED)              |
 | `a10g/access/response`      | Cloud (Node-RED)         | Device (MCU)                  |
-| `a10g/alert/duress`         | Cloud (Node-RED)         | Web Dashboard / Alert Client |
+| `a10g/alert/duress`         | Cloud (Node-RED)         | Web Dashboard / Alert Client  |
 | `a10g/register/fingerprint` | Device (MCU)             | Cloud (Node-RED)              |
+| `a10g/delete/fingerprint`   | Cloud (Node-RED)         | Device (MCU)                  |
+| `a10g/remote/unlock`        | Cloud (Node-RED)         | Device (MCU)                  |
 
 ### 3.4 Divide MCU Application Code into Threads
 
 **Thread Responsibilities:**
 
 | Thread Name           | Responsibility                                                                 |
-|-----------------------|---------------------------------------------------------------------------------|
+|-----------------------|--------------------------------------------------------------------------------|
 | `FingerprintThread`   | Scans fingerprint and sends result (finger ID, door state) to `MQTTClientThread`. |
-| `MQTTClientThread`    | Handles MQTT communication. Publishes fingerprint data, receives access decisions from cloud. |
-| `AccessControlThread` | Acts on cloud decisions: unlocks door or enables LCD based on received operation. |
-| `RegistrationThread`  | Handles fingerprint enrollment: captures new fingerprint and sends data to cloud. |
+| `MQTTClientThread`    | Handles MQTT communication. Publishes fingerprint data, receives access decisions, delete and unlock commands from cloud. |
+| `AccessControlThread` | Acts on cloud decisions: unlocks door or enables LCD based on received operation. Also executes remote unlock command. |
+| `RegistrationThread`  | Handles fingerprint enrollment and deletion: captures or deletes fingerprint data and sends updates to cloud. |
 
 **Inter-Thread Communication:**
 
-| From                  | To                    | Data/Trigger                                                  | Method          |
-|-----------------------|------------------------|---------------------------------------------------------------|-----------------|
-| `FingerprintThread`   | `MQTTClientThread`     | `{ "finger_id": int, "door_open": bool }`                     | Queue           |
-| `MQTTClientThread`    | `AccessControlThread`  | `{ "access_granted": bool, "operation": "door" \| "lcd" }`    | Queue or flags  |
-| `AccessControlThread` | `RegistrationThread`   | Local flag or signal to begin enrollment                      | Semaphore/Event |
+| From              | To                    | Data/Trigger                                           | Method               |
+|-------------------|------------------------|--------------------------------------------------------|----------------------|
+| `FingerprintThread` | `MQTTClientThread`     | `{ "finger_id": int, "door_open": bool }`              | Queue                |
+| `MQTTClientThread`  | `AccessControlThread`  | `{ "access_granted": bool, "operation": "door" \| "lcd" }` | Queue or flag        |
+| `MQTTClientThread`  | `AccessControlThread`  | `true` (remote unlock signal)                          | Flag / Queue         |
+| `MQTTClientThread`  | `RegistrationThread`   | `{ "finger_id": int }` (delete command)               | Queue or signal      |
+| `AccessControlThread` | `RegistrationThread` | Local flag or signal to begin enrollment               | Semaphore/Event      |
 
 ## 4. Bidirectional Cloud Communication
 
