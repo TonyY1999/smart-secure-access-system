@@ -1,4 +1,4 @@
-/******************************************************************************/ /**
+/**************************************************************************//**
  * @file      CliThread.h
  * @brief     Header for the CLI Thread handler using FreeRTOS + CLI
  * @author    Eduardo Garcia
@@ -29,7 +29,7 @@
 /******************************************************************************
  * PC Keyboard Control Sequences
  ******************************************************************************/
-#define CLI_MSG_LEN                  16
+#define CLI_MSG_LEN                 16
 #define CLI_PC_ESCAPE_CODE_SIZE     4
 #define CLI_PC_MIN_ESCAPE_CODE_SIZE 2
 
