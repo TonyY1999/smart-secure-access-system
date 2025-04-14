@@ -15,25 +15,13 @@
 #include "adxl345_imu.h"
 
 /******************************************************************************
- * Defines
- ******************************************************************************/
-#define ADXL345_I2C_ADDR		0x53  // Default address
-#define ADXL345_REG_DEVID		0x00
-#define ADXL345_REG_POWER_CTL	0x2D
-#define ADXL345_REG_DATAX0		0x32
-
-/******************************************************************************
  * Variables
  ******************************************************************************/
 uint8_t msgOutImu[64]; ///<USE ME AS A BUFFER FOR platform_write and platform_read
 I2C_Data imuData; ///<Use me as a structure to communicate with the IMU on platform_write and platform_read
 
 /******************************************************************************
- * Forward Declarations
- ******************************************************************************/
-
-/******************************************************************************
- * Callback Functions
+ * Global Functions
  ******************************************************************************/
 /**
  * @brief Write a single register to ADXL345

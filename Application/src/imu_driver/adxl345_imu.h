@@ -13,37 +13,53 @@ extern "C" {
 #endif
 
 /******************************************************************************
- * Includes
- ******************************************************************************/
-#include "I2cDriver/I2cDriver.h"
-
-/******************************************************************************
  * Defines
  ******************************************************************************/
-
-/******************************************************************************
- * Structures and Enumerations
- ******************************************************************************/
+#define ADXL345_I2C_ADDR		0x53  // Default address
+#define ADXL345_REG_DEVID		0x00
+#define ADXL345_REG_POWER_CTL	0x2D
+#define ADXL345_REG_DATAX0		0x32
 
 /******************************************************************************
  * Global Function Declaration
  ******************************************************************************/
-int adxl_write(uint8_t reg, uint8_t val);
-int adxl_read(uint8_t reg, uint8_t *buf, uint8_t len);
-int adxl_init(void);
-int adxl_read_xyz(int16_t *x, int16_t *y, int16_t *z);
 /**
- * @fn		int ExampleFuncionComment(int inputInt, void *pvParameters)
- * @brief	An example function comment. Erase me!
- * @details 	Write details of function here.
-
- * @param[in]	InputInt Use me to describe inputs to functions
- * @param[out]	*pvParameters Use me to describe outputs of functions passed as arguments
- * @return		Use me to explain the return of an argument.
- * @note
+ * @brief Write a value to a register on the ADXL345 over I2C.
+ *
+ * @param[in] reg Register address to write to.
+ * @param[in] val Value to write into the register.
+ * @return 0 if successful, negative value on failure.
  */
+int adxl_write(uint8_t reg, uint8_t val);
 
+/**
+ * @brief Read one or more bytes from a register on the ADXL345.
+ *
+ * @param[in]  reg  Register address to start reading from.
+ * @param[out] buf  Buffer to store the read data.
+ * @param[in]  len  Number of bytes to read.
+ * @return 0 if successful, negative value on failure.
+ */
+int adxl_read(uint8_t reg, uint8_t *buf, uint8_t len);
 
+/**
+ * @brief Initialize the ADXL345 accelerometer.
+ *
+ * Checks the device ID and sets measurement mode.
+ *
+ * @return 0 if successful, negative value if device ID mismatched or init failed.
+ */
+int adxl_init(void);
+
+/**
+ * @brief Read raw X, Y, and Z acceleration data from the ADXL345.
+ *
+ * @param[out] x Pointer to store raw X-axis data.
+ * @param[out] y Pointer to store raw Y-axis data.
+ * @param[out] z Pointer to store raw Z-axis data.
+ * @return 0 if successful, negative value on failure.
+ */
+int adxl_read_xyz(int16_t *x, int16_t *y, int16_t *z);
 
 #ifdef __cplusplus
 }
