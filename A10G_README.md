@@ -45,23 +45,21 @@ When a user places their finger on the fingerprint scanner, the system captures 
 
 | **Topic Name**              | **Direction**          | **Payload Format**       | **Description** |
 |-----------------------------|------------------------|--------------------------|------------------|
-| `a10g/access/request`       | Device → Cloud         | `{ "finger_id": int, "door_open": bool }`                          | Sent from the MCU to the cloud when a fingerprint is scanned. Indicates which finger and door state. |
-| `a10g/access/response`      | Cloud → Device         | `{ "access_granted": bool, "operation": "door" \| "lcd" }`         | Response from the cloud indicating whether access is granted and what type of operation to allow.   |
-| `a10g/alert/duress`         | Cloud → Dashboard UI   | `"Duress fingerprint detected!"`                                   | Alert message when a duress fingerprint is detected. No response is sent back to the device.         |
-| `a10g/register/fingerprint` | Device → Cloud         | `{ "new_finger_id": int, "user_name": string }`                    | Sent during fingerprint enrollment. Used to update cloud-side fingerprint records.                   |
-| `a10g/delete/fingerprint`   | Cloud → Device         | `{ "finger_id": int }`                              | Command from cloud to instruct the device to delete a specific fingerprint.   
+| `a10g/library/fingerprint`  | Device → Cloud         | `{ "finger_id": int}`  | Cloud periodically update fingerprint library from Fingerprint module |
+| `a10g/operation/fingerprint` | Device → Cloud         | `{ "register_delete": string }`  | After selection in LCD, a signal (add/delete) sent to Cloud |
+| `a10g/alert/duress`         | Device → Cloud         | `{ "duress": bool }`             | Signal from Fingerprint module to Cloud when a duress fingerprint is detected
 | `a10g/remote/unlock`        | Cloud → Device         | `true`                   | Simple signal to trigger door unlock remotely. |
+
 
 ### 3.3 Describe for Each Topic
 
-| **Topic Name**               | **Published By**        | **Subscribed By**             |
-|-----------------------------|--------------------------|-------------------------------|
-| `a10g/access/request`       | Device (MCU)             | Cloud (Node-RED)              |
-| `a10g/access/response`      | Cloud (Node-RED)         | Device (MCU)                  |
-| `a10g/alert/duress`         | Cloud (Node-RED)         | Web Dashboard / Alert Client  |
-| `a10g/register/fingerprint` | Device (MCU)             | Cloud (Node-RED)              |
-| `a10g/delete/fingerprint`   | Cloud (Node-RED)         | Device (MCU)                  |
-| `a10g/remote/unlock`        | Cloud (Node-RED)         | Device (MCU)                  |
+| **Topic Name**               | **Published By**         | **Subscribed By**             |
+|----------------------------- |--------------------------|-------------------------------|
+| `a10g/library/fingerprint`   | Device (MCU)             | Cloud (Node-RED)              |
+| `a10g/operation/fingerprint` | Device (MCU)             | Cloud (Node-RED)              |
+| `a10g/alert/duress`          | Device (MCU)             | Cloud (Node-RED)              |
+| `a10g/remote/unlock`         | Cloud (Node-RED)         | Device (MCU)                  |
+
 
 ### 3.4 Divide MCU Application Code into Threads
 
@@ -69,20 +67,19 @@ When a user places their finger on the fingerprint scanner, the system captures 
 
 | Thread Name           | Responsibility                                                                 |
 |-----------------------|--------------------------------------------------------------------------------|
-| `FingerprintThread`   | Scans fingerprint and sends result (finger ID, door state) to `MQTTClientThread`. |
-| `MQTTClientThread`    | Handles MQTT communication. Publishes fingerprint data, receives access decisions, delete and unlock commands from cloud. |
-| `AccessControlThread` | Acts on cloud decisions: unlocks door or enables LCD based on received operation. Also executes remote unlock command. |
-| `RegistrationThread`  | Handles fingerprint enrollment and deletion: captures or deletes fingerprint data and sends updates to cloud. |
+| `FingerprintThread`   | Scans fingerprint and sends result (`finger_id`, duress signal, etc.) to `MQTTClientThread`. |
+| `MQTTClientThread`    | Handles MQTT communication. Publishes fingerprint data, duress alerts, register/delete signals; receives remote unlock command from cloud. |
+| `AccessControlThread` | Executes unlock or LCD commands, including remote unlock triggered by cloud. |
+| `RegistrationThread`  | Handles fingerprint enrollment and deletion triggered via LCD selection. |
 
 **Inter-Thread Communication:**
 
-| From              | To                    | Data/Trigger                                           | Method               |
-|-------------------|------------------------|--------------------------------------------------------|----------------------|
-| `FingerprintThread` | `MQTTClientThread`     | `{ "finger_id": int, "door_open": bool }`              | Queue                |
-| `MQTTClientThread`  | `AccessControlThread`  | `{ "access_granted": bool, "operation": "door" \| "lcd" }` | Queue or flag        |
-| `MQTTClientThread`  | `AccessControlThread`  | `true` (remote unlock signal)                          | Flag / Queue         |
-| `MQTTClientThread`  | `RegistrationThread`   | `{ "finger_id": int }` (delete command)               | Queue or signal      |
-| `AccessControlThread` | `RegistrationThread` | Local flag or signal to begin enrollment               | Semaphore/Event      |
+| From                | To                    | Data/Trigger                                                     | Method             |
+|---------------------|------------------------|------------------------------------------------------------------|--------------------|
+| `FingerprintThread` | `MQTTClientThread`     | `{ "finger_id": int }`, `{ "duress": bool }`                     | Queue              |
+| `MQTTClientThread`  | `AccessControlThread`  | `true` (remote unlock signal)                                    | Flag / Queue       |
+| `AccessControlThread` | `RegistrationThread` | `{ "register_delete": string }` ("register" or "delete")         | Queue or flag      |
+| `RegistrationThread` | `MQTTClientThread`     | `{ "finger_id": int }` (send to cloud for updating fingerprint library) | Queue        |
 
 ## 4. Bidirectional Cloud Communication
 
