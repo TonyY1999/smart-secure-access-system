@@ -50,6 +50,7 @@ When a user places their finger on the fingerprint scanner, the system captures 
 | `a10g/alert/duress`         | Cloud → Dashboard UI   | `"Duress fingerprint detected!"`                                   | Alert message when a duress fingerprint is detected. No response is sent back to the device.         |
 | `a10g/register/fingerprint` | Device → Cloud         | `{ "new_finger_id": int, "user_name": string }`                    | Sent during fingerprint enrollment. Used to update cloud-side fingerprint records.                   |
 | `a10g/delete/fingerprint`   | Cloud → Device         | `{ "finger_id": int }`                              | Command from cloud to instruct the device to delete a specific fingerprint.   
+| `a10g/remote/unlock`        | Cloud → Device         | `true`                   | Simple signal to trigger door unlock remotely. |
 
 ### 3.3 Describe for Each Topic
 
