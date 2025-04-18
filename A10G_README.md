@@ -45,21 +45,17 @@ When a user places their finger on the fingerprint scanner, the system captures 
 
 | **Topic Name**              | **Direction**          | **Payload Format**       | **Description** |
 |-----------------------------|------------------------|--------------------------|------------------|
-| `a10g/library/fingerprint`  | Device → Cloud         | `{ "finger_id": int}`  | Cloud periodically update fingerprint library from Fingerprint module |
-| `a10g/operation/fingerprint` | Device → Cloud         | `{ "register_delete": string }`  | After selection in LCD, a signal (add/delete) sent to Cloud |
+| `a10g/library/fingerprint`  | Device → Cloud         | `{   "request": string,   "finger_id": int }`  | After selection in LCD, a signal (add/delete) sent to Cloud |
 | `a10g/alert/duress`         | Device → Cloud         | `{ "duress": bool }`             | Signal from Fingerprint module to Cloud when a duress fingerprint is detected
 | `a10g/remote/unlock`        | Cloud → Device         | `true`                   | Simple signal to trigger door unlock remotely. |
-
 
 ### 3.3 Describe for Each Topic
 
 | **Topic Name**               | **Published By**         | **Subscribed By**             |
 |----------------------------- |--------------------------|-------------------------------|
 | `a10g/library/fingerprint`   | Device (MCU)             | Cloud (Node-RED)              |
-| `a10g/operation/fingerprint` | Device (MCU)             | Cloud (Node-RED)              |
 | `a10g/alert/duress`          | Device (MCU)             | Cloud (Node-RED)              |
 | `a10g/remote/unlock`         | Cloud (Node-RED)         | Device (MCU)                  |
-
 
 ### 3.4 Divide MCU Application Code into Threads
 
@@ -93,4 +89,23 @@ When a user places their finger on the fingerprint scanner, the system captures 
 
 ## 5. Node-RED Implementation
 
+1. [Node-RED_demo](https://drive.google.com/file/d/1uBQdyJtHi-jTCxJdanfXTe5G0t1WATRe/view?usp=drive_link)
+2. Here id screenshot of backend and frontend of Node-RED.
+   1. Backend: ![backend.png](images/A10G/backend.png)
+   2. Frontend: ![frontend.png](images/A10G/frontend.png)
+3. Done, it's in Node-RED folder, named SSAS.json
+4. Here is the link to our Node_RED UI: [Node_RED](http://104.211.2.174:1880/ui)
+
 ## 6. Percepio Analysis
+
+1. Here is the wifi task cpu usage:  
+![wifi_task.png](images/A10G/wifi_task.png)
+2. Describe insights from reviewing the Percepio Tracelyzer analysis
+   1. How much CPU is used by the WiFi task?
+   From the CPU Load Graph in Tracealyzer, the WiFi task uses 85% of the CPU. This is shown by the consistent green bars dominating most of the columns.
+   2. How long is the CPU in the idle task?
+   The idle task is not shown in this particular trace, which suggests that the CPU is nearly always active. Given that WiFi, CLI, and Timer tasks consume nearly 100% combined, the idle task likely gets very little time, probably less than 5%, or even 0% during peak load.
+   3. How will you plan your application tasks so that you don’t go over 100% utilization?
+      1. Prioritize critical tasks by assigning them higher priorities.
+      2. Keep low-priority tasks efficient and non-blocking.
+      3. Use delays or blocking queues in tasks to yield the CPU when inactive.

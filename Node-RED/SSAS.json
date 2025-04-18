@@ -1,0 +1,564 @@
+[
+    {
+        "id": "mqtt_full_ui_tab",
+        "type": "tab",
+        "label": "Fingerprint Full UI",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "ui_table",
+        "type": "ui_template",
+        "z": "mqtt_full_ui_tab",
+        "group": "ui_group_fixed",
+        "name": "Fingerprint Table",
+        "order": 0,
+        "width": "12",
+        "height": "10",
+        "format": "<script>\n  (function(scope) {\n    scope.$watch('msg.payload.fingerprints', function(newVal) {\n        if (newVal) {\n            scope.fingerprints = newVal;\n\n            if (!newVal.find(fp => fp.id === scope.selected)) {\n                scope.selected = null;\n            }\n        }\n    });\n  })(scope);\n</script>\n\n<table border='1' style='width:100%; text-align:center;'>\n  <thead>\n    <tr>\n      <th>Check</th>\n      <th>ID</th>\n      <th>Type</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr ng-repeat=\"fp in fingerprints\">\n      <td><input type=\"radio\" ng-model=\"$parent.selected\" ng-value=\"fp.id\" name=\"select\"></td>\n      <td>{{fp.id}}</td>\n      <td>{{fp.type}}</td>\n    </tr>\n  </tbody>\n</table>\n<br>\n<button ng-click=\"send({payload: selected})\">Delete Selected Fingerprint</button>",
+        "storeOutMessages": false,
+        "fwdInMessages": false,
+        "resendOnRefresh": false,
+        "templateScope": "local",
+        "className": "",
+        "x": 630,
+        "y": 80,
+        "wires": [
+            [
+                "delete_logic"
+            ]
+        ]
+    },
+    {
+        "id": "delete_logic",
+        "type": "function",
+        "z": "mqtt_full_ui_tab",
+        "name": "Delete Fingerprint",
+        "func": "let deleteId = msg.payload;\nlet list = flow.get(\"fingerprints\") || [];\n\n// delete\nlist = list.filter(fp => fp.id !== deleteId);\nflow.set(\"fingerprints\", list);\n\n// update UI\nlet uiUpdate = { payload: { fingerprints: list } };\n\n// send mqtt message\nlet mqttMsg = {\n    topic: \"a10g/fingerprint/cmd\", \n    payload: {\n        command: \"delete\",\n        finger_id: deleteId\n    }\n};\n\nreturn [uiUpdate, mqttMsg];",
+        "outputs": 2,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 810,
+        "y": 180,
+        "wires": [
+            [
+                "ui_table"
+            ],
+            [
+                "aa36923d1b20c4f2",
+                "1330051adfb7e366"
+            ]
+        ]
+    },
+    {
+        "id": "ui_alert",
+        "type": "ui_text",
+        "z": "mqtt_full_ui_tab",
+        "group": "4024688eb99451bb",
+        "order": 1,
+        "width": "0",
+        "height": "0",
+        "name": "Alert Display",
+        "label": "",
+        "format": "{{msg.payload}}",
+        "layout": "col-center",
+        "className": "text-align: left; color: red; font-weight: bold;",
+        "style": true,
+        "font": "Arial,Arial,Helvetica,sans-serif",
+        "fontSize": "",
+        "color": "#ea1010",
+        "x": 490,
+        "y": 260,
+        "wires": []
+    },
+    {
+        "id": "ui_buttons",
+        "type": "ui_template",
+        "z": "mqtt_full_ui_tab",
+        "group": "b7af0d8fa35bf95e",
+        "name": "Select Window",
+        "order": 2,
+        "width": "1",
+        "height": "1",
+        "format": "<div ng-show=\"msg.payload.show\" style=\"\n  position: fixed;\n  top: 30%;\n  left: 50%;\n  transform: translate(-50%, -50%);\n  background: white;\n  border: 2px solid #2196F3;\n  box-shadow: 0 4px 8px rgba(0,0,0,0.2);\n  padding: 20px;\n  z-index: 9999;\n  border-radius: 10px;\n  text-align: center;\n  width: 300px;\n\">\n  <p style=\"font-size: 16px; margin-bottom: 20px;\">{{msg.payload.message}}</p>\n  <button ng-click=\"send({payload: { result: 'allow', finger_id: msg.payload.finger_id, action: msg.payload.action }})\"\n          style=\"margin: 0 10px; padding: 8px 16px; background-color: #4CAF50; color: white; border: none; border-radius: 5px;\">\n    ✅ Allow\n  </button>\n  <button ng-click=\"send({payload: { result: 'deny', finger_id: msg.payload.finger_id, action: msg.payload.action }})\"\n          style=\"margin: 0 10px; padding: 8px 16px; background-color: #F44336; color: white; border: none; border-radius: 5px;\">\n    ❌ Deny\n  </button>\n</div>",
+        "storeOutMessages": true,
+        "fwdInMessages": true,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 380,
+        "y": 80,
+        "wires": [
+            [
+                "b7d5af3a11a8f5fa"
+            ]
+        ]
+    },
+    {
+        "id": "467acf59e7dc8ede",
+        "type": "inject",
+        "z": "mqtt_full_ui_tab",
+        "name": "Add ID:0",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "{   \"request\": \"add\",   \"finger_id\": 0 }",
+        "payloadType": "json",
+        "x": 120,
+        "y": 520,
+        "wires": [
+            [
+                "9033c844d78f89e0"
+            ]
+        ]
+    },
+    {
+        "id": "ed0de74abddb3540",
+        "type": "inject",
+        "z": "mqtt_full_ui_tab",
+        "name": "Delete ID:1",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "{   \"request\": \"delete\",   \"finger_id\": 1 }",
+        "payloadType": "json",
+        "x": 120,
+        "y": 660,
+        "wires": [
+            [
+                "9033c844d78f89e0"
+            ]
+        ]
+    },
+    {
+        "id": "9033c844d78f89e0",
+        "type": "mqtt out",
+        "z": "mqtt_full_ui_tab",
+        "name": "",
+        "topic": "a10g/library/fingerprint",
+        "qos": "",
+        "retain": "",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "0f3329b0ff892f06",
+        "x": 360,
+        "y": 580,
+        "wires": []
+    },
+    {
+        "id": "abab762769c42c45",
+        "type": "inject",
+        "z": "mqtt_full_ui_tab",
+        "name": "Add ID:1",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "{   \"request\": \"add\",   \"finger_id\": 1 }",
+        "payloadType": "json",
+        "x": 120,
+        "y": 560,
+        "wires": [
+            [
+                "9033c844d78f89e0"
+            ]
+        ]
+    },
+    {
+        "id": "2734cdd1b907fce4",
+        "type": "function",
+        "z": "mqtt_full_ui_tab",
+        "name": "Parse Request",
+        "func": "// Topic: device/fingerprint/request\nlet req = msg.payload;\n\nif (req.request === \"add\" || req.request === \"delete\") {\n    msg.payload = {\n        show: true,\n        action: req.request,\n        finger_id: req.finger_id,\n        message: `Do you allow ${req.request === \"add\" ? \"add\" : \"delete\"} Fingerprint ID ${req.finger_id}？`\n    };\n    return msg;\n}\nreturn null;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 140,
+        "y": 160,
+        "wires": [
+            [
+                "ui_buttons"
+            ]
+        ]
+    },
+    {
+        "id": "f9a85bb2c71381a0",
+        "type": "mqtt in",
+        "z": "mqtt_full_ui_tab",
+        "name": "",
+        "topic": "a10g/library/fingerprint",
+        "qos": "2",
+        "datatype": "auto-detect",
+        "broker": "0f3329b0ff892f06",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 120,
+        "y": 80,
+        "wires": [
+            [
+                "2734cdd1b907fce4"
+            ]
+        ]
+    },
+    {
+        "id": "b7d5af3a11a8f5fa",
+        "type": "function",
+        "z": "mqtt_full_ui_tab",
+        "name": "Deal with Selection",
+        "func": "let res = msg.payload;\nlet list = flow.get(\"fingerprints\") || [];\n\nif (res.result === \"allow\") {\n    if (res.action === \"add\") {\n        let exists = list.find(fp => fp.id === res.finger_id);\n        if (!exists) {\n            let type = res.finger_id === 1 ? \"Duress Fingerprint\" : \"Normal Fingerprint\";\n            list.push({ id: res.finger_id, type });\n        }\n    } else if (res.action === \"delete\") {\n        list = list.filter(fp => fp.id !== res.finger_id);\n    }\n}\n\nflow.set(\"fingerprints\", list);\nmsg.payload = { fingerprints: list };\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 410,
+        "y": 160,
+        "wires": [
+            [
+                "ui_table"
+            ]
+        ]
+    },
+    {
+        "id": "662d913bbd0200ba",
+        "type": "inject",
+        "z": "mqtt_full_ui_tab",
+        "name": "Delete ID:0",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "{   \"request\": \"delete\",   \"finger_id\": 0 }",
+        "payloadType": "json",
+        "x": 120,
+        "y": 620,
+        "wires": [
+            [
+                "9033c844d78f89e0"
+            ]
+        ]
+    },
+    {
+        "id": "7a675cb3508a413d",
+        "type": "mqtt out",
+        "z": "mqtt_full_ui_tab",
+        "name": "",
+        "topic": "a10g/alert/duress",
+        "qos": "",
+        "retain": "",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "0f3329b0ff892f06",
+        "x": 350,
+        "y": 780,
+        "wires": []
+    },
+    {
+        "id": "3e56611f7f01dec6",
+        "type": "inject",
+        "z": "mqtt_full_ui_tab",
+        "name": "Duress Finger Enter",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "{ \"event\": \"duress\",   \"finger_id\": 1 }",
+        "payloadType": "json",
+        "x": 130,
+        "y": 780,
+        "wires": [
+            [
+                "7a675cb3508a413d"
+            ]
+        ]
+    },
+    {
+        "id": "360d5cfa8c0da740",
+        "type": "mqtt in",
+        "z": "mqtt_full_ui_tab",
+        "name": "",
+        "topic": "a10g/alert/duress",
+        "qos": "2",
+        "datatype": "auto-detect",
+        "broker": "0f3329b0ff892f06",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 120,
+        "y": 260,
+        "wires": [
+            [
+                "ef36d08d521b2ad1"
+            ]
+        ]
+    },
+    {
+        "id": "ef36d08d521b2ad1",
+        "type": "function",
+        "z": "mqtt_full_ui_tab",
+        "name": "Deal with Duress Fingerprint",
+        "func": "msg.payload = `<span style=\"text-align:left; color:red;\"><b>⚠️ Duress Fingerprint Triggered!  ID: ${msg.payload.finger_id}</b></span>`;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 280,
+        "y": 340,
+        "wires": [
+            [
+                "ui_alert"
+            ]
+        ]
+    },
+    {
+        "id": "aa36923d1b20c4f2",
+        "type": "mqtt out",
+        "z": "mqtt_full_ui_tab",
+        "name": "",
+        "topic": "a10g/fingerprint/cmd",
+        "qos": "",
+        "retain": "",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "0f3329b0ff892f06",
+        "x": 1060,
+        "y": 180,
+        "wires": []
+    },
+    {
+        "id": "1330051adfb7e366",
+        "type": "debug",
+        "z": "mqtt_full_ui_tab",
+        "name": "debug 1",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1040,
+        "y": 320,
+        "wires": []
+    },
+    {
+        "id": "89549e18accd9e35",
+        "type": "ui_button",
+        "z": "mqtt_full_ui_tab",
+        "name": " Unlock Front Door",
+        "group": "943784b4d0c513a3",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "passthru": false,
+        "label": "button",
+        "tooltip": "",
+        "color": "",
+        "bgcolor": "",
+        "className": "",
+        "icon": "",
+        "payload": "{ \"door\": \"front\" }",
+        "payloadType": "json",
+        "topic": "a10g/remote/unlock",
+        "topicType": "msg",
+        "x": 130,
+        "y": 420,
+        "wires": [
+            [
+                "aa90990a681b1182",
+                "9973401e26afa27f"
+            ]
+        ]
+    },
+    {
+        "id": "aa90990a681b1182",
+        "type": "mqtt out",
+        "z": "mqtt_full_ui_tab",
+        "name": "",
+        "topic": "a10g/remote/unlock",
+        "qos": "",
+        "retain": "",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "0f3329b0ff892f06",
+        "x": 370,
+        "y": 420,
+        "wires": []
+    },
+    {
+        "id": "9973401e26afa27f",
+        "type": "debug",
+        "z": "mqtt_full_ui_tab",
+        "name": "debug 2",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 360,
+        "y": 480,
+        "wires": []
+    },
+    {
+        "id": "ui_group_fixed",
+        "type": "ui_group",
+        "name": "Fingerprint Management",
+        "tab": "ui_tab_fixed",
+        "order": 1,
+        "disp": true,
+        "width": "12",
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "4024688eb99451bb",
+        "type": "ui_group",
+        "name": "Warning: ",
+        "tab": "ui_tab_fixed",
+        "order": 2,
+        "disp": true,
+        "width": "7",
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "b7af0d8fa35bf95e",
+        "type": "ui_group",
+        "name": "Pop Up",
+        "tab": "ui_tab_fixed",
+        "order": 3,
+        "disp": false,
+        "width": "1",
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "0f3329b0ff892f06",
+        "type": "mqtt-broker",
+        "name": "AzureMqttBroker",
+        "broker": "104.211.2.174",
+        "port": 1883,
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": 4,
+        "keepalive": 60,
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "943784b4d0c513a3",
+        "type": "ui_group",
+        "name": " Unlock Front Door",
+        "tab": "ui_tab_fixed",
+        "order": 4,
+        "disp": true,
+        "width": 6,
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "ui_tab_fixed",
+        "type": "ui_tab",
+        "name": "SSAS Dashboard",
+        "icon": "dashboard",
+        "order": 1,
+        "disabled": false,
+        "hidden": false
+    }
+]
