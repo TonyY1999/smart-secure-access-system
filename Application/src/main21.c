@@ -21,7 +21,9 @@
  #include "stdio_serial.h"
  #include "SerialConsole/SerialConsole.h"
  #include "imu_driver/adxl345_imu.h"
-#include "MCHP_ATWx.h"
+ #include "MCHP_ATWx.h"
+ #include "LCD/ST7735.h"
+ #include "LCD/LCD_GFX.h"
 
 /******************************************************************************
  * Defines
@@ -179,6 +181,13 @@ static void StartTasks(void) {
 	//SerialConsoleWriteString(bufferPrint);
 	
 	//xTaskCreate(vLEDTask,"LED_TASK", 256, NULL, 1, NULL );
+	
+	////LCD + Encoder 
+	//if (xTaskCreate(vLCDTask, "ST7735_TASK", 512, NULL, 1, NULL) != pdPASS) {
+		//SerialConsoleWriteString("ERR: WIFI task could not be initialized!\r\n");
+	//}
+	//snprintf(bufferPrint, 64, "Heap after starting WIFI: %d\r\n", xPortGetFreeHeapSize());
+	//SerialConsoleWriteString(bufferPrint);
 }
 
 /**

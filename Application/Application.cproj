@@ -1259,6 +1259,8 @@
     <Folder Include="src\iot\http\" />
     <Folder Include="src\CliThread" />
     <Folder Include="src\I2cDriver" />
+    <Folder Include="src\Encoder" />
+    <Folder Include="src\LCD" />
     <Folder Include="src\WifiHandlerThread" />
     <Folder Include="src\SerialConsole\" />
   </ItemGroup>
@@ -1341,6 +1343,12 @@
     <None Include="src\config\conf_dma.h">
       <SubType>compile</SubType>
     </None>
+    <Compile Include="src\Encoder\Encoder.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\Encoder\Encoder.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="src\I2cDriver\I2cDriver.c">
       <SubType>compile</SubType>
     </Compile>
@@ -1351,6 +1359,21 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\imu_driver\adxl345_imu.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\LCD\ASCII_LUT.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\LCD\LCD_GFX.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\LCD\LCD_GFX.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\LCD\ST7735.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\LCD\ST7735.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\secret.h">
