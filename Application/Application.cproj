@@ -1261,6 +1261,7 @@
     <Folder Include="src\I2cDriver" />
     <Folder Include="src\Encoder" />
     <Folder Include="src\LCD" />
+    <Folder Include="src\Buzzer" />
     <Folder Include="src\WifiHandlerThread" />
     <Folder Include="src\SerialConsole\" />
   </ItemGroup>
@@ -1332,6 +1333,12 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\ASF\sam0\drivers\sercom\i2c\i2c_sam0\i2c_master_interrupt.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\Buzzer\Buzzer.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\Buzzer\Buzzer.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\CliThread\CliThread.c">
