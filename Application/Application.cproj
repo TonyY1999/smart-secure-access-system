@@ -940,7 +940,7 @@
   </armgcc.linker.libraries.LibrarySearchPaths>
   <armgcc.linker.optimization.GarbageCollectUnusedSections>True</armgcc.linker.optimization.GarbageCollectUnusedSections>
   <armgcc.linker.memorysettings.ExternalRAM />
-  <armgcc.linker.miscellaneous.LinkerFlags>-Wl,--entry=Reset_Handler -Wl,--cref -mthumb -T../src/ASF/sam0/utils/linker_scripts/samd21/gcc/samd21g18a_flash.ld -Wl,-section-start=.text=0x12000</armgcc.linker.miscellaneous.LinkerFlags>
+  <armgcc.linker.miscellaneous.LinkerFlags>-Wl,--entry=Reset_Handler -Wl,--cref -mthumb -T../src/ASF/sam0/utils/linker_scripts/samd21/gcc/samd21g18a_flash.ld</armgcc.linker.miscellaneous.LinkerFlags>
   <armgcc.assembler.general.IncludePaths>
     <ListValues>
       <Value>../src/iot/http</Value>
@@ -1254,11 +1254,13 @@
     <Folder Include="src\ASF\thirdparty\pahomqtt\MQTTClient\Wrapper\" />
     <Folder Include="src\ASF\thirdparty\pahomqtt\MQTTPacket\" />
     <Folder Include="src\config\" />
+    <Folder Include="src\fingerprint_driver\" />
     <Folder Include="src\imu_driver\" />
     <Folder Include="src\iot\" />
     <Folder Include="src\iot\http\" />
     <Folder Include="src\CliThread" />
     <Folder Include="src\I2cDriver" />
+    <Folder Include="src\servo_driver" />
     <Folder Include="src\WifiHandlerThread" />
     <Folder Include="src\SerialConsole\" />
   </ItemGroup>
@@ -1341,6 +1343,12 @@
     <None Include="src\config\conf_dma.h">
       <SubType>compile</SubType>
     </None>
+    <Compile Include="src\fingerprint_driver\fingerprint_driver.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\fingerprint_driver\fingerprint_driver.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="src\I2cDriver\I2cDriver.c">
       <SubType>compile</SubType>
     </Compile>
@@ -1351,6 +1359,12 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\imu_driver\adxl345_imu.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\servo_driver\servo_driver.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\servo_driver\servo_driver.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\secret.h">
