@@ -1,6 +1,6 @@
 /**************************************************************************//**
- * @file      fingerprint_driver.c
- * @brief     fingerprint module driver
+ * @file      servo_driver.c
+ * @brief     servo motor driver
  * @author    Tony Yan & Yue Zhang
  * @date      2025-04-16
  ******************************************************************************/
