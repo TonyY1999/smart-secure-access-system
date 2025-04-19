@@ -10,21 +10,23 @@
  ******************************************************************************/
 #include <errno.h>
 
-#include "CliThread/CliThread.h"
-#include "FreeRTOS.h"
-#include "I2cDriver/I2cDriver.h"
-#include "SerialConsole.h"
-#include "WifiHandlerThread/WifiHandler.h"
-#include "asf.h"
-#include "driver/include/m2m_wifi.h"
-#include "main.h"
-#include "stdio_serial.h"
-#include "SerialConsole/SerialConsole.h"
-#include "imu_driver/adxl345_imu.h"
+ #include "CliThread/CliThread.h"
+ #include "FreeRTOS.h"
+ #include "I2cDriver\I2cDriver.h"
+ #include "SerialConsole.h"
+ #include "WifiHandlerThread/WifiHandler.h"
+ #include "asf.h"
+ #include "driver/include/m2m_wifi.h"
+ #include "main.h"
+ #include "stdio_serial.h"
+ #include "SerialConsole/SerialConsole.h"
+ #include "imu_driver/adxl345_imu.h"
 #include "MCHP_ATWx.h"
 
 #include "servo_driver/servo_driver.h"
 #include "fingerprint_driver/fingerprint_driver.h"
+ #include "LCD/ST7735.h"
+ #include "LCD/LCD_GFX.h"
 
 /******************************************************************************
  * Defines
@@ -200,7 +202,7 @@ static void StartTasks(void) {
 	//snprintf(bufferPrint, 64, "Heap after starting IMU: %d\r\n", xPortGetFreeHeapSize());
 	//SerialConsoleWriteString(bufferPrint);
 	
-	xTaskCreate(fingerprint_task,"finegrprint_task", 256, NULL, 3, NULL );
+	//xTaskCreate(vLEDTask,"LED_TASK", 256, NULL, 1, NULL );
 }
 
 /**
