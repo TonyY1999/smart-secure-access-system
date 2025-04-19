@@ -54,7 +54,7 @@ uint8_t fingerprint_search();
 
 void set_baud_rate_9600();
 
-//void read_sys_para();
+void read_sys_para();
 
 void read_temp_num();
 

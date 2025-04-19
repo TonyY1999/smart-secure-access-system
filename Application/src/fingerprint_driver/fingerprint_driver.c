@@ -70,7 +70,7 @@ uint8_t gen_cf_to_b1() {
 	fingerprint_send_packet(cmd, sizeof(cmd));
 	
 	uint8_t ack[12];
-	fingerprint_send_packet(ack, sizeof(ack));
+	fingerprint_read_response(ack, sizeof(ack));
 	
 	if(ack[9] == 0) {
 		LogMessage(LOG_INFO_LVL, "CharBuffer1 generated.\r\n");
@@ -122,7 +122,7 @@ void store_finger(uint8_t id) {
 	fingerprint_send_packet(cmd, sizeof(cmd));
 	
 	uint8_t ack[12];
-	fingerprint_send_packet(ack, 12);
+	fingerprint_read_response(ack, 12);
 	
 	if(ack[9] == 0) {
 		LogMessage(LOG_INFO_LVL, "Stored fingerprint at ID %d.\r\n", id);
@@ -243,14 +243,14 @@ void set_baud_rate_9600()
 }
 
 // Read fingerprint sensor system parameters
-//void read_sys_para()
-//{
-	//uint8_t command_packet[] = READ_SYS_CMD;
-	//fingerprint_send_packet(command_packet, sizeof(command_packet));
-//
-	//uint8_t response_packet[28];
-	//fingerprint_read_response(response_packet, 28);
-//}
+void read_sys_para()
+{
+	uint8_t command_packet[] = READ_SYS_CMD;
+	fingerprint_send_packet(command_packet, sizeof(command_packet));
+
+	uint8_t response_packet[28];
+	fingerprint_read_response(response_packet, 28);
+}
 
 // Read the number of fingers stored in library
 void read_temp_num()
