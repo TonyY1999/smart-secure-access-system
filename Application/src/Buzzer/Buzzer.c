@@ -1,23 +1,24 @@
- #include "CliThread/CliThread.h"
- #include "FreeRTOS.h"
- #include "I2cDriver\I2cDriver.h"
- #include "SerialConsole.h"
- #include "WifiHandlerThread/WifiHandler.h"
- #include "asf.h"
- #include "driver/include/m2m_wifi.h"
- #include "main.h"
- #include "stdio_serial.h"
- #include "SerialConsole/SerialConsole.h"
- #include "imu_driver/adxl345_imu.h"
- #include "MCHP_ATWx.h"
- 
- #include "Buzzer.h"
- 
+/**************************************************************************//**
+ * @file      buzzer.c
+ * @brief     alarming system buzzer driver
+ * @author    Tony Yan & Yue Zhang
+ * @date      2025-04-18
+ ******************************************************************************/
+
+/******************************************************************************
+ * Includes
+ ******************************************************************************/
+#include "Buzzer.h"
+#include <asf.h>
+
+/******************************************************************************
+ * Variables
+ ******************************************************************************/
+struct tcc_module tcc_instance;
+
 /******************************************************************************
  * Local Functions
  ******************************************************************************/
-
-struct tcc_module tcc_instance;
 void configure_tcc(void)
 {
 	struct tcc_config config_tcc;
