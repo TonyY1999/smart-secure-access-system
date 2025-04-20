@@ -30,25 +30,34 @@ static void fingerprint_read_response(uint8_t *buffer, uint16_t length);
  * Global Functions
  ******************************************************************************/
 void fingerprint_init()
-{
+{	
 	struct usart_config config_usart;
 	usart_get_config_defaults(&config_usart);
 
-	config_usart.baudrate    = 9600;
-	config_usart.mux_setting = USART_RX_1_TX_0_XCK_1;
-	config_usart.pinmux_pad0 = PINMUX_PA16C_SERCOM1_PAD0;  // TX
-	config_usart.pinmux_pad1 = PINMUX_PA17C_SERCOM1_PAD1;  // RX
-	config_usart.pinmux_pad2 = PINMUX_UNUSED; 
-	config_usart.pinmux_pad3 = PINMUX_UNUSED; 
+	config_usart.baudrate = 9600;
+	config_usart.character_size = USART_CHARACTER_SIZE_8BIT;
+	config_usart.parity = USART_PARITY_NONE;
+	config_usart.stopbits = USART_STOPBITS_1;
+	
+	config_usart.mux_setting = USART_RX_3_TX_2_XCK_3;
+	config_usart.pinmux_pad0 = PINMUX_UNUSED;  // TX
+	config_usart.pinmux_pad1 = PINMUX_UNUSED;  // RX
+	config_usart.pinmux_pad2 = PINMUX_PA18C_SERCOM1_PAD2; 
+	config_usart.pinmux_pad3 = PINMUX_PA19C_SERCOM1_PAD3; 
 
 	while (usart_init(&fingerprint_usart_instance, SERCOM1, &config_usart) != STATUS_OK);
 	usart_enable(&fingerprint_usart_instance);
+	
+	uint32_t pmux_val = PORT->Group[0].PMUX[16 >> 1].reg;  // PA16 is pin 16
+	uint32_t pincfg_val = PORT->Group[0].PINCFG[16].reg;
 }
 
 // Detecting finger and store the detected finger image in ImageBuffer
 uint8_t gen_img() {
 	uint8_t cmd[] = GEN_IMG_CMD;
 	fingerprint_send_packet(cmd, sizeof(cmd));
+	
+	vTaskDelay(pdMS_TO_TICKS(500));
 	
 	uint8_t ack[12];
 	fingerprint_read_response(ack, sizeof(ack));
@@ -122,7 +131,7 @@ void store_finger(uint8_t id) {
 	fingerprint_send_packet(cmd, sizeof(cmd));
 	
 	uint8_t ack[12];
-	fingerprint_read_response(ack, 12);
+	fingerprint_read_response(ack, sizeof(ack));
 	
 	if(ack[9] == 0) {
 		LogMessage(LOG_INFO_LVL, "Stored fingerprint at ID %d.\r\n", id);
@@ -224,20 +233,13 @@ void set_baud_rate_9600()
 	fingerprint_send_packet(cmd, 14);
 
 	uint8_t ack[12];
-	//fingerprint_read_response(ack, sizeof(ack));
-	
-	for (int i = 0; i < 12; i++) {
-		usart_read_wait(&fingerprint_usart_instance, &ack[i]);
-		LogMessage(LOG_INFO_LVL, "jj: %d.\r\n", ack[i]);
-	}
+	fingerprint_read_response(ack, sizeof(ack));
 	
 	if (ack[9] == 0)
 	{
-		SerialConsoleWriteString("1");
 		LogMessage(LOG_INFO_LVL, "Parameter setting complete.\r\n");
 	}
 	else {
-		SerialConsoleWriteString("2");
 		LogMessage(LOG_ERROR_LVL, "Parameter setting failed, code: 0x%02X.\r\n", ack[9]);
 	}
 }
@@ -245,11 +247,17 @@ void set_baud_rate_9600()
 // Read fingerprint sensor system parameters
 void read_sys_para()
 {
-	uint8_t command_packet[] = READ_SYS_CMD;
-	fingerprint_send_packet(command_packet, sizeof(command_packet));
+	uint8_t cmd[] = READ_SYS_CMD;
+	fingerprint_send_packet(cmd, sizeof(cmd));
+	
+	vTaskDelay(pdMS_TO_TICKS(50));
 
-	uint8_t response_packet[28];
-	fingerprint_read_response(response_packet, 28);
+	uint8_t ack[28];
+	fingerprint_read_response(ack, sizeof(ack));
+	//for (int i = 0; i < 28; i++)
+	//{
+		//LogMessage(LOG_INFO_LVL, "ack: %d", ack[i]);
+	//}
 }
 
 // Read the number of fingers stored in library
@@ -274,10 +282,10 @@ void read_temp_num()
  ******************************************************************************/
 static void fingerprint_send_packet(uint8_t *packet, uint16_t length)
 {
-	usart_write_buffer_wait(&fingerprint_usart_instance, packet, length);
+	int res = usart_write_buffer_wait(&fingerprint_usart_instance, packet, length);
 }
 
 static void fingerprint_read_response(uint8_t *buffer, uint16_t length)
 {
-	usart_read_buffer_wait(&fingerprint_usart_instance, buffer, length);
+	int res = usart_read_buffer_wait(&fingerprint_usart_instance, buffer, length);
 }

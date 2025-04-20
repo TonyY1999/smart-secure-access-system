@@ -95,12 +95,12 @@ int main(void) {
     system_init();
 	
 	// test
-	servo_init();
+	//servo_init();
 	
 	// test2
-	fingerprint_init();
+	//fingerprint_init();
 	
-	pwm_set_servo_angle_lock_door(); 
+	//pwm_set_servo_angle_lock_door(); 
 	
     // Initialize trace capabilities
     vTraceEnable(TRC_START);
@@ -120,6 +120,8 @@ int main(void) {
 void vApplicationDaemonTaskStartupHook(void) {
 	// initialize the UART console
 	InitializeSerialConsole();
+	
+	fingerprint_init();
 	
     SerialConsoleWriteString("\r\n-----Smart Secure Access System-----\r\n");
 
@@ -169,8 +171,10 @@ void servo_task(void *pvParameters){
 //}
 
 void fingerprint_task() {
-	//set_baud_rate_9600();
-	gen_img();	
+	//fingerprint_enroll(0);
+	//gen_img();
+	
+	read_sys_para();
 }
 
 /**
@@ -202,9 +206,12 @@ static void StartTasks(void) {
 	//snprintf(bufferPrint, 64, "Heap after starting IMU: %d\r\n", xPortGetFreeHeapSize());
 	//SerialConsoleWriteString(bufferPrint);
 	
-	//xTaskCreate(vLEDTask,"LED_TASK", 256, NULL, 1, NULL );
+	xTaskCreate(fingerprint_task,"FInger_TASK", 512, NULL, 2, NULL);
 }
 
+/******************************************************************************
+ * Callback Functions
+ ******************************************************************************/
 /**
  * function          vApplicationMallocFailedHook
  * @brief            Called when a malloc() fails in FreeRTOS. Handles memory allocation failure

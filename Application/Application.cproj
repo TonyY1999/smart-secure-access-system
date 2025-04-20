@@ -1253,13 +1253,17 @@
     <Folder Include="src\ASF\thirdparty\pahomqtt\MQTTClient\Platforms\" />
     <Folder Include="src\ASF\thirdparty\pahomqtt\MQTTClient\Wrapper\" />
     <Folder Include="src\ASF\thirdparty\pahomqtt\MQTTPacket\" />
+    <Folder Include="src\buzzer_driver\" />
     <Folder Include="src\config\" />
+    <Folder Include="src\Encoder\" />
     <Folder Include="src\fingerprint_driver\" />
     <Folder Include="src\imu_driver\" />
     <Folder Include="src\iot\" />
     <Folder Include="src\iot\http\" />
     <Folder Include="src\CliThread" />
     <Folder Include="src\I2cDriver" />
+    <Folder Include="src\LCD\" />
+    <Folder Include="src\servo_driver\" />
     <Folder Include="src\WifiHandlerThread" />
     <Folder Include="src\SerialConsole\" />
   </ItemGroup>
@@ -1333,10 +1337,10 @@
     <Compile Include="src\ASF\sam0\drivers\sercom\i2c\i2c_sam0\i2c_master_interrupt.c">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="src\Buzzer\Buzzer.c">
+    <Compile Include="src\buzzer_driver\Buzzer.c">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="src\Buzzer\Buzzer.h">
+    <Compile Include="src\buzzer_driver\Buzzer.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\CliThread\CliThread.c">
@@ -1348,6 +1352,18 @@
     <None Include="src\config\conf_dma.h">
       <SubType>compile</SubType>
     </None>
+    <Compile Include="src\Encoder\Encoder.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\Encoder\Encoder.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\fingerprint_driver\fingerprint_driver.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\fingerprint_driver\fingerprint_driver.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="src\I2cDriver\I2cDriver.c">
       <SubType>compile</SubType>
     </Compile>
@@ -1360,7 +1376,28 @@
     <Compile Include="src\imu_driver\adxl345_imu.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="src\LCD\ASCII_LUT.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\LCD\LCD_GFX.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\LCD\LCD_GFX.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\LCD\ST7735.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\LCD\ST7735.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="src\secret.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\servo_driver\servo_driver.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\servo_driver\servo_driver.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\WifiHandlerThread\WifiHandler.c">
