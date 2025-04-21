@@ -10,21 +10,33 @@
  ******************************************************************************/
 #include "fingerprint_driver.h"
 #include "SerialConsole.h"
+#include <asf.h>
 
 /******************************************************************************
  * Defines
  ******************************************************************************/
+#define ACK_BUFFER_SIZE 32
 
 /******************************************************************************
  * Variables
  ******************************************************************************/
 static struct usart_module fingerprint_usart_instance;
 
+static SemaphoreHandle_t rx_semaphore;
+
+static volatile uint8_t latest_rx;
+static uint8_t rx_buffer[ACK_BUFFER_SIZE];
+static uint16_t rx_index = 0;
+static uint16_t rx_expected_len = 0;
+
 /******************************************************************************
  * Forward Declarations
  ******************************************************************************/
 static void fingerprint_send_packet(uint8_t *packet, uint16_t length);
 static void fingerprint_read_response(uint8_t *buffer, uint16_t length);
+
+static void fingerprint_read_callback(struct usart_module *const usart_module);
+
 
 /******************************************************************************
  * Global Functions
@@ -47,9 +59,11 @@ void fingerprint_init()
 
 	while (usart_init(&fingerprint_usart_instance, SERCOM1, &config_usart) != STATUS_OK);
 	usart_enable(&fingerprint_usart_instance);
+		
+	usart_register_callback(&fingerprint_usart_instance, fingerprint_read_callback, USART_CALLBACK_BUFFER_RECEIVED);
+	usart_enable_callback(&fingerprint_usart_instance, USART_CALLBACK_BUFFER_RECEIVED);	
 	
-	uint32_t pmux_val = PORT->Group[0].PMUX[16 >> 1].reg;  // PA16 is pin 16
-	uint32_t pincfg_val = PORT->Group[0].PINCFG[16].reg;
+	rx_semaphore = xSemaphoreCreateBinary();
 }
 
 // Detecting finger and store the detected finger image in ImageBuffer
@@ -200,7 +214,7 @@ uint8_t fingerprint_search() {
 	fingerprint_send_packet(cmd, sizeof(cmd));
 	
 	uint8_t ack[16];
-	fingerprint_send_packet(ack, sizeof(ack));
+	fingerprint_read_response(ack, sizeof(ack));
 	
 	if(ack[9] == 0) {
         LogMessage(LOG_INFO_LVL, "Fingerprint matched. ID = %d.\r\n", ack[11]);
@@ -250,14 +264,21 @@ void read_sys_para()
 	uint8_t cmd[] = READ_SYS_CMD;
 	fingerprint_send_packet(cmd, sizeof(cmd));
 	
-	vTaskDelay(pdMS_TO_TICKS(50));
+	LogMessage(LOG_INFO_LVL, "Sent to module!\r\n");
+	
+	//vTaskDelay(pdMS_TO_TICKS(50));
 
+	//LogMessage(LOG_INFO_LVL, "Before reading ACK");
+	//
 	uint8_t ack[28];
 	fingerprint_read_response(ack, sizeof(ack));
-	//for (int i = 0; i < 28; i++)
-	//{
-		//LogMessage(LOG_INFO_LVL, "ack: %d", ack[i]);
-	//}
+	
+	LogMessage(LOG_INFO_LVL, "rx_index is %d\r\n", rx_index);
+	
+	for (int i = 0; i < 28; i++)
+	{
+		LogMessage(LOG_INFO_LVL, "rx_buffer is 0x%02X\r\n", rx_buffer[i]);
+	}
 }
 
 // Read the number of fingers stored in library
@@ -285,7 +306,41 @@ static void fingerprint_send_packet(uint8_t *packet, uint16_t length)
 	int res = usart_write_buffer_wait(&fingerprint_usart_instance, packet, length);
 }
 
-static void fingerprint_read_response(uint8_t *buffer, uint16_t length)
+//static void fingerprint_read_response(uint8_t *buffer, uint16_t length)
+//{
+	//int res = usart_read_buffer_wait(&fingerprint_usart_instance, buffer, length);
+//}
+
+static void fingerprint_read_response(uint8_t* buffer, uint16_t length)
 {
-	int res = usart_read_buffer_wait(&fingerprint_usart_instance, buffer, length);
+	rx_index = 0;
+	rx_expected_len = length;
+	
+	//while(usart_read_job(&fingerprint_usart_instance, &latest_rx) != STATUS_OK);
+	while(usart_read_buffer_job(&fingerprint_usart_instance, &latest_rx, 1) != STATUS_OK);
+	
+	if (xSemaphoreTake(rx_semaphore, pdMS_TO_TICKS(1000)) == pdTRUE)
+	{
+		LogMessage(LOG_INFO_LVL, "ACK received.\r\n");
+		memcpy(buffer, rx_buffer, length); 
+	}
+}
+
+void fingerprint_read_callback(struct usart_module *const usart_module)
+{
+	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+	
+	if (rx_index < rx_expected_len)
+	{
+		rx_buffer[rx_index++] = latest_rx;
+	}
+	
+	if(rx_index >= rx_expected_len) {
+		xSemaphoreGiveFromISR(rx_semaphore, &xHigherPriorityTaskWoken);
+	}
+		
+	//while(usart_read_job(&fingerprint_usart_instance, &latest_rx) != STATUS_OK);
+	while(usart_read_buffer_job(&fingerprint_usart_instance, &latest_rx, 1) != STATUS_OK);
+
+	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }

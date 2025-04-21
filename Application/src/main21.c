@@ -171,9 +171,6 @@ void servo_task(void *pvParameters){
 //}
 
 void fingerprint_task() {
-	//fingerprint_enroll(0);
-	//gen_img();
-	
 	read_sys_para();
 }
 

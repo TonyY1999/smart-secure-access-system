@@ -103,7 +103,7 @@ void LogMessage(enum eDebugLogLevels level, const char *format, ...) {
 
     va_list args;
     va_start(args, format);
-    char buffer[256];
+    char buffer[64];
     vsnprintf(buffer, sizeof(buffer), format, args);
     va_end(args);
 
