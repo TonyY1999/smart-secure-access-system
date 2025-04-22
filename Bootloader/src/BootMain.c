@@ -27,8 +27,6 @@
 ******************************************************************************/
 #define APP_START_ADDRESS           ((uint32_t) 0x12000)                    ///< Start of main application. Must be address of start of main application
 #define APP_START_RESET_VEC_ADDRESS (APP_START_ADDRESS + (uint32_t) 0x04)   ///< Main application reset vector address
-#define CRC32_TESTA	0x1EF640AF
-#define CRC32_TESTB	0xFFECCCF0
 
 /******************************************************************************
 * Structures and Enumerations
