@@ -498,7 +498,7 @@ void init_storage(void)
 {
     FRESULT res;
     Ctrl_status status;
-
+	
     /* Initialize SD/MMC stack. */
     sd_mmc_init();
     while (true) {
