@@ -42,7 +42,6 @@ void InitializeSerialConsole(void) {
 
     configure_usart();
     configure_usart_callbacks();
-    NVIC_SetPriority(SERCOM4_IRQn, 10);  // 可根据实际 SERCOM 调整
 
     usart_read_buffer_job(&usart_instance, (uint8_t *)&latestRx, 1);
 
