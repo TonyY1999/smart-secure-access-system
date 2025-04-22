@@ -121,10 +121,10 @@ void vApplicationDaemonTaskStartupHook(void) {
 	// initialize the UART console
 	InitializeSerialConsole();
 	
-	fingerprint_init();
+	//fingerprint_init();
 	
-    SerialConsoleWriteString("\r\n-----Smart Secure Access System-----\r\n");
-
+    SerialConsoleWriteString("\x0C\n\r-----Smart Secure Access System-----\r\n");
+	
     // initialize HW that needs FreeRTOS Initialization
     SerialConsoleWriteString("Initialize I2C driver...\r\n");
     if (I2cInitializeDriver() != STATUS_OK) {
@@ -190,11 +190,11 @@ static void StartTasks(void) {
     SerialConsoleWriteString(bufferPrint);
 	
 	// initialize WIFI task here
-    //if (xTaskCreate(vWifiTask, "WIFI_TASK", WIFI_TASK_SIZE, NULL, WIFI_PRIORITY, &wifiTaskHandle) != pdPASS) {
-        //SerialConsoleWriteString("ERR: WIFI task could not be initialized!\r\n");
-    //}
-    //snprintf(bufferPrint, 64, "Heap after starting WIFI: %d\r\n", xPortGetFreeHeapSize());
-    //SerialConsoleWriteString(bufferPrint);
+    if (xTaskCreate(vWifiTask, "WIFI_TASK", WIFI_TASK_SIZE, NULL, 2, &wifiTaskHandle) != pdPASS) {
+	    SerialConsoleWriteString("ERR: WIFI task could not be initialized!\r\n");
+    }
+    snprintf(bufferPrint, 64, "Heap after starting WIFI: %d\r\n", xPortGetFreeHeapSize());
+    SerialConsoleWriteString(bufferPrint);
 	
 	// initialize IMU task here
 	//if (xTaskCreate(vIMUTask, "IMU_TASK", 512, NULL, 1, NULL) != pdPASS) {
@@ -203,7 +203,7 @@ static void StartTasks(void) {
 	//snprintf(bufferPrint, 64, "Heap after starting IMU: %d\r\n", xPortGetFreeHeapSize());
 	//SerialConsoleWriteString(bufferPrint);
 	
-	xTaskCreate(fingerprint_task,"FInger_TASK", 512, NULL, 2, NULL);
+	//xTaskCreate(fingerprint_task,"FInger_TASK", 512, NULL, 2, NULL);
 }
 
 /******************************************************************************
