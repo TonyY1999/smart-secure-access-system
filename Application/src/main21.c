@@ -10,23 +10,23 @@
  ******************************************************************************/
 #include <errno.h>
 
- #include "CliThread/CliThread.h"
- #include "FreeRTOS.h"
- #include "I2cDriver\I2cDriver.h"
- #include "SerialConsole.h"
- #include "WifiHandlerThread/WifiHandler.h"
- #include "asf.h"
- #include "driver/include/m2m_wifi.h"
- #include "main.h"
- #include "stdio_serial.h"
- #include "SerialConsole/SerialConsole.h"
- #include "imu_driver/adxl345_imu.h"
+#include "FreeRTOS.h"
+#include "I2cDriver\I2cDriver.h"
+#include "SerialConsole.h"
+#include "asf.h"
+#include "driver/include/m2m_wifi.h"
+#include "main.h"
+#include "stdio_serial.h"
+#include "SerialConsole/SerialConsole.h"
 #include "MCHP_ATWx.h"
 
+#include "CliThread/CliThread.h"
+#include "WifiHandlerThread/WifiHandler.h"
 #include "servo_driver/servo_driver.h"
 #include "fingerprint_driver/fingerprint_driver.h"
- #include "LCD/ST7735.h"
- #include "LCD/LCD_GFX.h"
+#include "imu_driver/adxl345_imu.h"
+#include "LCD/ST7735.h"
+#include "LCD/LCD_GFX.h"
 
 /******************************************************************************
  * Defines
@@ -42,6 +42,8 @@ static TaskHandle_t daemonTaskHandle = NULL;    //!< Daemon task handle
 static TaskHandle_t wifiTaskHandle = NULL;      //!< WIFI task handle
 static TaskHandle_t uiTaskHandle = NULL;        //!< UI task handle
 static TaskHandle_t controlTaskHandle = NULL;   //!< Control task handle
+TaskHandle_t servoTaskHandle = NULL;		//!< Serco task handle
+
 
 char bufferPrint[64];   ///< Buffer for daemon task
 
@@ -54,54 +56,17 @@ void vApplicationStackOverflowHook(void);
 void vApplicationMallocFailedHook(void);
 void vApplicationDaemonTaskStartupHook(void);
 
-//!< Initial task used to initialize HW before other tasks are initialized
-static void StartTasks(void);
-
-// IMU task function 
-void vIMUTask(void *pvParameters)
-{
-	SerialConsoleWriteString("Initializing IMU...\r\n");
-
-	if (adxl_init() != 0) {
-		SerialConsoleWriteString("IMU initialization failed!\r\n");
-		vTaskDelete(NULL);
-	}
-
-	SerialConsoleWriteString("IMU initialized successfully.\r\n");
-	
-	int16_t x, y, z;
-	while (1) {
-		if (adxl_read_xyz(&x, &y, &z) == 0)
-		{
-			char msg[64];
-			snprintf(msg, sizeof(msg), "Accel X: %d, Y: %d, Z: %d\r\n", x, y, z);
-			SerialConsoleWriteString(msg);
-		}
-		else {
-			SerialConsoleWriteString("Error reading ADXL345 data!\r\n");
-		}
-		
-		vTaskDelay(pdMS_TO_TICKS(50));
-	}
-}
+static void StartTasks(void);  //!< Initial task used to initialize HW before other tasks are initialized
 
 /**
  * @brief Main application function.
  * Application entry point.
  * @return int
  */
-int main(void) {
+int main(void) {	
     /* Initialize the board. */
     system_init();
-	
-	// test
-	//servo_init();
-	
-	// test2
-	//fingerprint_init();
-	
-	//pwm_set_servo_angle_lock_door(); 
-	
+		
     // Initialize trace capabilities
     vTraceEnable(TRC_START);
 	
@@ -111,6 +76,56 @@ int main(void) {
     return 0;   // Will not get here
 }
 
+/******************************************************************************
+ * Local Functions
+ ******************************************************************************/
+/**
+ * function          StartTasks
+ * @brief            Initialize application tasks
+ */
+static void StartTasks(void) {
+    snprintf(bufferPrint, 64, "Heap before starting tasks: %d\r\n", xPortGetFreeHeapSize());
+    SerialConsoleWriteString(bufferPrint);
+
+    // initialize CLI task here
+    if (xTaskCreate(vCommandConsoleTask, "CLI_TASK", CLI_TASK_SIZE, NULL, 0, &cliTaskHandle) != pdPASS) {
+	    SerialConsoleWriteString("ERR: CLI task could not be initialized!\r\n");
+    }
+    snprintf(bufferPrint, 64, "Heap after starting CLI: %d\r\n", xPortGetFreeHeapSize());
+    SerialConsoleWriteString(bufferPrint);
+	
+	// initialize WIFI task here
+    if (xTaskCreate(vWifiTask, "WIFI_TASK", WIFI_TASK_SIZE, NULL, 3, &wifiTaskHandle) != pdPASS) {
+	    SerialConsoleWriteString("ERR: WIFI task could not be initialized!\r\n");
+    }
+    snprintf(bufferPrint, 64, "Heap after starting WIFI: %d\r\n", xPortGetFreeHeapSize());
+    SerialConsoleWriteString(bufferPrint);
+	
+	// initialize IMU task here
+	//if (xTaskCreate(vIMUTask, "IMU_TASK", 512, NULL, 1, NULL) != pdPASS) {
+		//SerialConsoleWriteString("ERR: IMU task could not be initialized!\r\n");
+	//}
+	//snprintf(bufferPrint, 64, "Heap after starting IMU: %d\r\n", xPortGetFreeHeapSize());
+	//SerialConsoleWriteString(bufferPrint);
+	
+	// initialize servo motor task here
+	//if (xTaskCreate(servo_task, "SERVO_TASK", 256, NULL, 1, &servoTaskHandle) != pdPASS) {
+		//SerialConsoleWriteString("ERR: Servo task could not be initialized!\r\n");
+	//}
+	//snprintf(bufferPrint, 64, "Heap after starting servo motor: %d\r\n", xPortGetFreeHeapSize());
+	//SerialConsoleWriteString(bufferPrint);
+	
+	// initialize fingerprint module task here
+	//if (xTaskCreate(fingerprint_task, "FINGERPRINT_TASK", 512, NULL, 2, NULL) != pdPASS) {
+		//SerialConsoleWriteString("ERR: Fingerprint task could not be initialized!\r\n");
+	//}
+	//snprintf(bufferPrint, 64, "Heap after starting fingerprint module: %d\r\n", xPortGetFreeHeapSize());
+	//SerialConsoleWriteString(bufferPrint);
+}
+
+/******************************************************************************
+ * Callback Functions
+ ******************************************************************************/
 /**
  * function         vApplicationDaemonTaskStartupHook
  * @brief           Initialization code for all subsystems that require FreeRToS
@@ -120,8 +135,6 @@ int main(void) {
 void vApplicationDaemonTaskStartupHook(void) {
 	// initialize the UART console
 	InitializeSerialConsole();
-	
-	//fingerprint_init();
 	
     SerialConsoleWriteString("\x0C\n\r-----Smart Secure Access System-----\r\n");
 	
@@ -138,77 +151,6 @@ void vApplicationDaemonTaskStartupHook(void) {
     vTaskSuspend(daemonTaskHandle);
 }
 
-void servo_task(void *pvParameters){
-	while (1)
-	{
-		pwm_set_servo_angle_lock_door();
-		vTaskDelay(pdMS_TO_TICKS(1000));
-
-		pwm_set_servo_angle_unlock_door();
-		vTaskDelay(pdMS_TO_TICKS(1000));
-	}
-}
-
-//void fingerprint_task(void *pvParameters)
-//{
-	//LogMessage(LOG_INFO_LVL, "Fingerprint Task started.\r\n");
-//
-	//while (1)
-	//{
-		//LogMessage(LOG_INFO_LVL, "Waiting for finger...\r\n");
-		//
-		//fingerprint_enroll(0);
-		//
-		//read_temp_num();
-		//
-		//vTaskDelay(pdMS_TO_TICKS(5000));
-		//
-		//LogMessage(LOG_INFO_LVL, "Please put your finger to detected.\r\n");
-		//vTaskDelay(pdMS_TO_TICKS(5000));
-		//
-		//
-	//}
-//}
-
-void fingerprint_task() {
-	read_sys_para();
-}
-
-/**
- * function          StartTasks
- * @brief            Initialize application tasks
- */
-static void StartTasks(void) {
-    snprintf(bufferPrint, 64, "Heap before starting tasks: %d\r\n", xPortGetFreeHeapSize());
-    SerialConsoleWriteString(bufferPrint);
-
-    // initialize CLI task here
-    if (xTaskCreate(vCommandConsoleTask, "CLI_TASK", CLI_TASK_SIZE, NULL, 1, &cliTaskHandle) != pdPASS) {
-	    SerialConsoleWriteString("ERR: CLI task could not be initialized!\r\n");
-    }
-    snprintf(bufferPrint, 64, "Heap after starting CLI: %d\r\n", xPortGetFreeHeapSize());
-    SerialConsoleWriteString(bufferPrint);
-	
-	// initialize WIFI task here
-    if (xTaskCreate(vWifiTask, "WIFI_TASK", WIFI_TASK_SIZE, NULL, 2, &wifiTaskHandle) != pdPASS) {
-	    SerialConsoleWriteString("ERR: WIFI task could not be initialized!\r\n");
-    }
-    snprintf(bufferPrint, 64, "Heap after starting WIFI: %d\r\n", xPortGetFreeHeapSize());
-    SerialConsoleWriteString(bufferPrint);
-	
-	// initialize IMU task here
-	//if (xTaskCreate(vIMUTask, "IMU_TASK", 512, NULL, 1, NULL) != pdPASS) {
-		//SerialConsoleWriteString("ERR: IMU task could not be initialized!\r\n");
-	//}
-	//snprintf(bufferPrint, 64, "Heap after starting IMU: %d\r\n", xPortGetFreeHeapSize());
-	//SerialConsoleWriteString(bufferPrint);
-	
-	//xTaskCreate(fingerprint_task,"FInger_TASK", 512, NULL, 2, NULL);
-}
-
-/******************************************************************************
- * Callback Functions
- ******************************************************************************/
 /**
  * function          vApplicationMallocFailedHook
  * @brief            Called when a malloc() fails in FreeRTOS. Handles memory allocation failure
