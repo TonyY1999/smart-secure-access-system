@@ -10,11 +10,11 @@
 
 ### 1.1 Sensor Block diagram
 
-![Hardware_Connection_Sensor](/images/A12G/sensor_driver.png)
+![Hardware_Connection_Sensor](images/A12G/sensor_driver.png)
 
 ### 1.2 Sensor Functioning drivers
 
-[Fingerprint_Module_Code]()
+[Fingerprint_Module_Code](/Application/src/fingerprint_driver/fingerprint_driver.c)
 
 [IMU_Code](/Application/src/imu_driver/adxl345_imu.c)
 
@@ -22,12 +22,13 @@
 
 ### 1.3 Hardware Connections between PCBA and Sensors
 
+![hardware_connection.png](images/A12G/hardware_connection.png)
 
 ### 1.4 Sensor Video
 
-[Fingerprint_Module_Video]()
+[Fingerprint_Module_Video](https://drive.google.com/file/d/1oL5ro91yjNc3BdL9OxVQnfqHntDxpaXs/view?usp=sharing)
 
-[IMU_Video]()
+[IMU_Video](https://drive.google.com/file/d/1PYLPo5pfAXS1OL1rAU4TqK_AiPrdUUKx/view?usp=drive_link)
 
 [Rotatry_Encoder_Video](https://drive.google.com/file/d/1-KUCeG1gAosjxQjWOg-F7uCcF4t5FEvN/view?usp=sharing)
 
@@ -35,17 +36,19 @@
 
 ### 2.1 Actuator Block diagram
 
-![Hardware_Connection_Actuator](/images/A12G/actuator_driver.png)
+![Hardware_Connection_Actuator](images/A12G/actuator_driver.png)
 
 ### 2.2 Actuator Functioning drivers
 
 [LCD_Code](/Application/src/LCD/LCD_GFX.c)
 
-[Servo_Motor_Code]()
+[Servo_Motor_Code](/Application/src/servo_driver/servo_driver.cs)
 
 [Buzzer_Code](/Application/src/Buzzer/Buzzer.c)
 
 ### 2.3 Hardware Connections between PCBA and Actuators
+
+![hardware_connection.png](images/A12G/hardware_connection.png)
 
 ### 2.4 Actuator Video
 
