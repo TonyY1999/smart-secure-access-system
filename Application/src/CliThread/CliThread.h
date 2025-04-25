@@ -16,7 +16,7 @@
 /******************************************************************************
  * Task Config
  ******************************************************************************/
-#define CLI_TASK_SIZE     400                          ///< Stack size for CLI task
+#define CLI_TASK_SIZE     256                          ///< Stack size for CLI task
 #define CLI_PRIORITY      (configMAX_PRIORITIES - 1)   ///< CLI thread runs at highest priority
 #define CLI_TASK_DELAY    150                          ///< Delay between polling (ms)
 
