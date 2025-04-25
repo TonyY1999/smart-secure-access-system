@@ -27,3 +27,6 @@
 
 #Secret header file
 secret.h
+
+# Application 
+*.cproj
