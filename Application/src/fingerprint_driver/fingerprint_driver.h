@@ -42,11 +42,11 @@ uint8_t gen_img();
 
 uint8_t gen_cf_to_b1();
 
-void gen_cf_to_b2();
+uint8_t gen_cf_to_b2();
 
-void reg_model();
+uint8_t reg_model();
 
-void store_finger(uint8_t id);
+uint8_t store_finger(uint8_t id);
 
 void fingerprint_enroll(uint8_t id);
 
@@ -57,6 +57,8 @@ void set_baud_rate_9600();
 void read_sys_para();
 
 void read_temp_num();
+
+void fingerprint_task(void *pvParameters);
 
 /**
  * @fn		int ExampleFuncionComment(int inputInt, void *pvParameters)

@@ -29,6 +29,8 @@ static uint8_t rx_buffer[ACK_BUFFER_SIZE];
 static uint16_t rx_index = 0;
 static uint16_t rx_expected_len = 0;
 
+extern TaskHandle_t servoTaskHandle;
+
 /******************************************************************************
  * Forward Declarations
  ******************************************************************************/
@@ -36,7 +38,6 @@ static void fingerprint_send_packet(uint8_t *packet, uint16_t length);
 static void fingerprint_read_response(uint8_t *buffer, uint16_t length);
 
 static void fingerprint_read_callback(struct usart_module *const usart_module);
-
 
 /******************************************************************************
  * Global Functions
@@ -51,13 +52,13 @@ void fingerprint_init()
 	config_usart.parity = USART_PARITY_NONE;
 	config_usart.stopbits = USART_STOPBITS_1;
 	
-	config_usart.mux_setting = USART_RX_3_TX_2_XCK_3;
-	config_usart.pinmux_pad0 = PINMUX_UNUSED;  // TX
-	config_usart.pinmux_pad1 = PINMUX_UNUSED;  // RX
-	config_usart.pinmux_pad2 = PINMUX_PA18C_SERCOM1_PAD2; 
-	config_usart.pinmux_pad3 = PINMUX_PA19C_SERCOM1_PAD3; 
+	config_usart.mux_setting = USART_RX_1_TX_0_XCK_1;
+	config_usart.pinmux_pad0 = PINMUX_PA08C_SERCOM0_PAD0;  // TX
+	config_usart.pinmux_pad1 = PINMUX_PA09C_SERCOM0_PAD1;  // RX
+	config_usart.pinmux_pad2 = PINMUX_UNUSED;
+	config_usart.pinmux_pad3 = PINMUX_UNUSED;
 
-	while (usart_init(&fingerprint_usart_instance, SERCOM1, &config_usart) != STATUS_OK);
+	while (usart_init(&fingerprint_usart_instance, SERCOM0, &config_usart) != STATUS_OK);
 	usart_enable(&fingerprint_usart_instance);
 		
 	usart_register_callback(&fingerprint_usart_instance, fingerprint_read_callback, USART_CALLBACK_BUFFER_RECEIVED);
@@ -71,17 +72,15 @@ uint8_t gen_img() {
 	uint8_t cmd[] = GEN_IMG_CMD;
 	fingerprint_send_packet(cmd, sizeof(cmd));
 	
-	vTaskDelay(pdMS_TO_TICKS(500));
-	
 	uint8_t ack[12];
 	fingerprint_read_response(ack, sizeof(ack));
 	
-	if(ack[9] == 0) {
-		LogMessage(LOG_INFO_LVL, "Finger collection success!\r\n");
-	}
-	else {
-		LogMessage(LOG_ERROR_LVL, "Finger capture failed. Code: 0x%02X.\r\n", ack[9]);
-	}
+	//if(ack[9] == 0) {
+		//LogMessage(LOG_INFO_LVL, "Finger collection success!\r\n");
+	//}
+	//else {
+		//LogMessage(LOG_ERROR_LVL, "Finger capture failed. Code: 0x%02X.\r\n", ack[9]);
+	//}
 	
 	return ack[9];
 }
@@ -95,116 +94,123 @@ uint8_t gen_cf_to_b1() {
 	uint8_t ack[12];
 	fingerprint_read_response(ack, sizeof(ack));
 	
-	if(ack[9] == 0) {
-		LogMessage(LOG_INFO_LVL, "CharBuffer1 generated.\r\n");
-	}
-	else {
-		LogMessage(LOG_ERROR_LVL, "CharBuffer1 failed. Code: 0x%02X.\r\n", ack[9]);
-	}
+	//if(ack[9] == 0) {
+		//LogMessage(LOG_INFO_LVL, "CharBuffer1 generated.\r\n");
+	//}
+	//else {
+		//LogMessage(LOG_ERROR_LVL, "CharBuffer1 failed. Code: 0x%02X.\r\n", ack[9]);
+	//}
 	
 	return ack[9];
 }
 
 // Generate character file from the original finger image in ImageBuffer and
 // store the file in CharBuffer2.
-void gen_cf_to_b2() {
+uint8_t gen_cf_to_b2() {
 	uint8_t cmd[] = GEN_CF_TO_B2_CMD;
 	fingerprint_send_packet(cmd, sizeof(cmd));
 	
 	uint8_t ack[12];
 	fingerprint_read_response(ack, sizeof(ack));
 	
-	if(ack[9] == 0) {
-		LogMessage(LOG_INFO_LVL, "CharBuffer2 generated.\r\n");
-	}
-	else {
-		LogMessage(LOG_ERROR_LVL, "CharBuffer2 failed. Code: 0x%02X.\r\n", ack[9]);
-	}
+	//if(ack[9] == 0) {
+		//LogMessage(LOG_INFO_LVL, "CharBuffer2 generated.\r\n");
+	//}
+	//else {
+		//LogMessage(LOG_ERROR_LVL, "CharBuffer2 failed. Code: 0x%02X.\r\n", ack[9]);
+	//}
+	return ack[9];
 }
 
 // combine information of character files from CharBuffer1 and CharBuffer2
 // and generate a template which is stored back in both CharBuffer1 and CharBuffer2
-void reg_model() {
+uint8_t reg_model() {
 	uint8_t cmd[] = REG_MODEL_CMD;
 	fingerprint_send_packet(cmd, sizeof(cmd));
 	
 	uint8_t ack[12];
 	fingerprint_read_response(ack, 12);
 	
-	if(ack[9] == 0) {
-		LogMessage(LOG_INFO_LVL, "Template successfully generated.\r\n");
-	}
-	else {
-		LogMessage(LOG_ERROR_LVL, "Template generation failed. Code: 0x%02X.\r\n", ack[9]);
-	}
+	//if(ack[9] == 0) {
+		//LogMessage(LOG_INFO_LVL, "Template successfully generated.\r\n");
+	//}
+	//else {
+		//LogMessage(LOG_ERROR_LVL, "Template generation failed. Code: 0x%02X.\r\n", ack[9]);
+	//}
+	
+	return ack[9];
 }
 
 // Store the template of specified buffer (Buffer1) at the designated location of Flash library
-void store_finger(uint8_t id) {
+uint8_t store_finger(uint8_t id) {
 	uint8_t cmd[] = STORE_CMD(id);
 	fingerprint_send_packet(cmd, sizeof(cmd));
 	
 	uint8_t ack[12];
 	fingerprint_read_response(ack, sizeof(ack));
 	
-	if(ack[9] == 0) {
-		LogMessage(LOG_INFO_LVL, "Stored fingerprint at ID %d.\r\n", id);
-	}
-	else {
-		LogMessage(LOG_ERROR_LVL, "Store failed. Code: 0x%02X.\r\n", ack[9]);
-	}
+	//if(ack[9] == 0) {
+		//LogMessage(LOG_INFO_LVL, "Stored fingerprint at ID %d.\r\n", id);
+	//}
+	//else {
+		//LogMessage(LOG_ERROR_LVL, "Store failed. Code: 0x%02X.\r\n", ack[9]);
+	//}
+	
+	return ack[9];
 }
 
 // Enroll fingerprint
 void fingerprint_enroll(uint8_t id) {
 	// Collect finger
-	LogMessage(LOG_INFO_LVL, "Place finger on sensor...\r\n");
-	vTaskDelay(pdMS_TO_TICKS(3000));
+	//SerialConsoleWriteString("Place finger on sensor...\r\n");
+	//vTaskDelay(pdMS_TO_TICKS(3000));
 	gen_img();
+	
+	//vTaskDelay(pdMS_TO_TICKS(100));
 	
 	// Generate character file
 	gen_cf_to_b1();
-	SerialConsoleWriteString("Remove your finger.\r\n");
-	vTaskDelay(pdMS_TO_TICKS(3000));
+	//SerialConsoleWriteString("Remove your finger.\r\n");
+	//vTaskDelay(pdMS_TO_TICKS(3000));
 	
 	// Collect finger
-	SerialConsoleWriteString("Put your finger on sensor....\r\n");
-	vTaskDelay(pdMS_TO_TICKS(3000));
+	//SerialConsoleWriteString("Put your finger on sensor....\r\n");
+	//vTaskDelay(pdMS_TO_TICKS(3000));
 	gen_img();
 	
 	// Generate character file
 	gen_cf_to_b2();
-	SerialConsoleWriteString("Remove your finger.\r\n");
-	vTaskDelay(pdMS_TO_TICKS(3000));
+	//SerialConsoleWriteString("Remove your finger.\r\n");
+	//vTaskDelay(pdMS_TO_TICKS(3000));
 	
 	// Combine to template
 	reg_model();
 	
 	// Store finger to library
-	store_finger(id);
+	int res = store_finger(id);
 }
 
 // Recognize fingerprint
 uint8_t fingerprint_search() {
 	// Collect finger
-	LogMessage(LOG_INFO_LVL, "Place finger on sensor...\r\n");
-	vTaskDelay(pdMS_TO_TICKS(3000));
+	//LogMessage(LOG_INFO_LVL, "Place finger on sensor...\r\n");
+	//vTaskDelay(pdMS_TO_TICKS(3000));
 	gen_img();
 		
 	// Generate character file
 	gen_cf_to_b1();
-	SerialConsoleWriteString("Remove your finger.\r\n");
-	vTaskDelay(pdMS_TO_TICKS(3000));
-		
+	//SerialConsoleWriteString("Remove your finger.\r\n");
+	//vTaskDelay(pdMS_TO_TICKS(3000));
+		//
 	// Collect finger
-	SerialConsoleWriteString("Put your finger on sensor....\r\n");
-	vTaskDelay(pdMS_TO_TICKS(3000));
+	//SerialConsoleWriteString("Put your finger on sensor....\r\n");
+	//vTaskDelay(pdMS_TO_TICKS(3000));
 	gen_img();
 		
 	// Generate character file
 	gen_cf_to_b2();
-	SerialConsoleWriteString("Remove your finger.\r\n");
-	vTaskDelay(pdMS_TO_TICKS(3000));
+	//SerialConsoleWriteString("Remove your finger.\r\n");
+	//vTaskDelay(pdMS_TO_TICKS(3000));
 		
 	// Combine to template
 	reg_model();
@@ -215,19 +221,21 @@ uint8_t fingerprint_search() {
 	
 	uint8_t ack[16];
 	fingerprint_read_response(ack, sizeof(ack));
+	//
+	//if(ack[9] == 0) {
+        //LogMessage(LOG_INFO_LVL, "Fingerprint matched. ID = %d.\r\n", ack[11]);
+        //return ack[11];
+	//}
+	//else if(ack[9] == 1) {
+		//LogMessage(LOG_ERROR_LVL, "Error when receiving package.\r\n");
+		//return 0xFE;
+	//}
+	//else {
+        //LogMessage(LOG_WARNING_LVL, "No match found. Code: 0x%02X.\r\n", ack[9]);
+        //return 0xFE;
+	//}
 	
-	if(ack[9] == 0) {
-        LogMessage(LOG_INFO_LVL, "Fingerprint matched. ID = %d.\r\n", ack[11]);
-        return ack[11];
-	}
-	else if(ack[9] == 1) {
-		LogMessage(LOG_ERROR_LVL, "Error when receiving package.\r\n");
-		return 0xFE;
-	}
-	else {
-        LogMessage(LOG_WARNING_LVL, "No match found. Code: 0x%02X.\r\n", ack[9]);
-        return 0xFE;
-	}
+	return ack[9];
 }
 
 // Set the fingerprint sensor baud rate to 9600
@@ -264,21 +272,8 @@ void read_sys_para()
 	uint8_t cmd[] = READ_SYS_CMD;
 	fingerprint_send_packet(cmd, sizeof(cmd));
 	
-	LogMessage(LOG_INFO_LVL, "Sent to module!\r\n");
-	
-	//vTaskDelay(pdMS_TO_TICKS(50));
-
-	//LogMessage(LOG_INFO_LVL, "Before reading ACK");
-	//
 	uint8_t ack[28];
 	fingerprint_read_response(ack, sizeof(ack));
-	
-	LogMessage(LOG_INFO_LVL, "rx_index is %d\r\n", rx_index);
-	
-	for (int i = 0; i < 28; i++)
-	{
-		LogMessage(LOG_INFO_LVL, "rx_buffer is 0x%02X\r\n", rx_buffer[i]);
-	}
 }
 
 // Read the number of fingers stored in library
@@ -289,13 +284,12 @@ void read_temp_num()
 
 	uint8_t ack[14];
 	fingerprint_read_response(ack, sizeof(ack));
-	
-	if(ack[9] == 0) {
-		LogMessage(LOG_INFO_LVL, "Finger count: %d", ack[11]);
-	}
-	else {
-		LogMessage(LOG_ERROR_LVL, "Read template count failed. Code: 0x%02X", ack[9]);
-	}
+	//if(ack[9] == 0) {
+		//LogMessage(LOG_INFO_LVL, "Finger count: %d", ack[11]);
+	//}
+	//else {
+		//LogMessage(LOG_ERROR_LVL, "Read template count failed. Code: 0x%02X", ack[9]);
+	//}
 }
 
 /******************************************************************************
@@ -306,41 +300,53 @@ static void fingerprint_send_packet(uint8_t *packet, uint16_t length)
 	int res = usart_write_buffer_wait(&fingerprint_usart_instance, packet, length);
 }
 
-//static void fingerprint_read_response(uint8_t *buffer, uint16_t length)
-//{
-	//int res = usart_read_buffer_wait(&fingerprint_usart_instance, buffer, length);
-//}
-
 static void fingerprint_read_response(uint8_t* buffer, uint16_t length)
 {
-	rx_index = 0;
-	rx_expected_len = length;
-	
-	//while(usart_read_job(&fingerprint_usart_instance, &latest_rx) != STATUS_OK);
-	while(usart_read_buffer_job(&fingerprint_usart_instance, &latest_rx, 1) != STATUS_OK);
-	
-	if (xSemaphoreTake(rx_semaphore, pdMS_TO_TICKS(1000)) == pdTRUE)
-	{
-		LogMessage(LOG_INFO_LVL, "ACK received.\r\n");
-		memcpy(buffer, rx_buffer, length); 
+	while (usart_get_job_status(&fingerprint_usart_instance, USART_TRANSCEIVER_RX) == STATUS_BUSY) {
+		vTaskDelay(1);
+	}
+
+	if (usart_read_buffer_job(&fingerprint_usart_instance, buffer, length) != STATUS_OK) {
+		LogMessage(LOG_ERROR_LVL, "USART RX job failed\r\n");
+		return;
+	}
+
+	if (xSemaphoreTake(rx_semaphore, pdMS_TO_TICKS(1000)) != pdTRUE) {
+		LogMessage(LOG_ERROR_LVL, "Timeout waiting for USART RX\r\n");
 	}
 }
 
+
+/******************************************************************************
+ * Callback Function
+ ******************************************************************************/
 void fingerprint_read_callback(struct usart_module *const usart_module)
 {
 	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-	
-	if (rx_index < rx_expected_len)
-	{
-		rx_buffer[rx_index++] = latest_rx;
-	}
-	
-	if(rx_index >= rx_expected_len) {
-		xSemaphoreGiveFromISR(rx_semaphore, &xHigherPriorityTaskWoken);
-	}
-		
-	//while(usart_read_job(&fingerprint_usart_instance, &latest_rx) != STATUS_OK);
-	while(usart_read_buffer_job(&fingerprint_usart_instance, &latest_rx, 1) != STATUS_OK);
-
+	xSemaphoreGiveFromISR(rx_semaphore, &xHigherPriorityTaskWoken);
 	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+}
+
+
+/******************************************************************************
+ * Task Function
+ ******************************************************************************/
+void fingerprint_task(void *pvParameters){
+	fingerprint_init();
+	
+	
+	//fingerprint_enroll(3);
+	//read_temp_num();
+	
+	//fingerprint_search();
+	
+	while (1)
+	{
+		if (fingerprint_search() == 0)
+		{
+			vTaskResume(servoTaskHandle);
+		}
+		
+		vTaskDelay(100);
+	}
 }
