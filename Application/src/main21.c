@@ -95,11 +95,11 @@ static void StartTasks(void) {
     SerialConsoleWriteString(bufferPrint);
 	
 	// initialize WIFI task here
-    if (xTaskCreate(vWifiTask, "WIFI_TASK", WIFI_TASK_SIZE, NULL, 3, &wifiTaskHandle) != pdPASS) {
-	    SerialConsoleWriteString("ERR: WIFI task could not be initialized!\r\n");
-    }
-    snprintf(bufferPrint, 64, "Heap after starting WIFI: %d\r\n", xPortGetFreeHeapSize());
-    SerialConsoleWriteString(bufferPrint);
+    //if (xTaskCreate(vWifiTask, "WIFI_TASK", WIFI_TASK_SIZE, NULL, 3, &wifiTaskHandle) != pdPASS) {
+	    //SerialConsoleWriteString("ERR: WIFI task could not be initialized!\r\n");
+    //}
+    //snprintf(bufferPrint, 64, "Heap after starting WIFI: %d\r\n", xPortGetFreeHeapSize());
+    //SerialConsoleWriteString(bufferPrint);
 	
 	// initialize IMU task here
 	//if (xTaskCreate(vIMUTask, "IMU_TASK", 512, NULL, 1, NULL) != pdPASS) {
@@ -109,18 +109,18 @@ static void StartTasks(void) {
 	//SerialConsoleWriteString(bufferPrint);
 	
 	// initialize servo motor task here
-	//if (xTaskCreate(servo_task, "SERVO_TASK", 256, NULL, 1, &servoTaskHandle) != pdPASS) {
-		//SerialConsoleWriteString("ERR: Servo task could not be initialized!\r\n");
-	//}
-	//snprintf(bufferPrint, 64, "Heap after starting servo motor: %d\r\n", xPortGetFreeHeapSize());
-	//SerialConsoleWriteString(bufferPrint);
+	if (xTaskCreate(servo_task, "SERVO_TASK", 256, NULL, 1, &servoTaskHandle) != pdPASS) {
+		SerialConsoleWriteString("ERR: Servo task could not be initialized!\r\n");
+	}
+	snprintf(bufferPrint, 64, "Heap after starting servo motor: %d\r\n", xPortGetFreeHeapSize());
+	SerialConsoleWriteString(bufferPrint);
 	
 	// initialize fingerprint module task here
-	//if (xTaskCreate(fingerprint_task, "FINGERPRINT_TASK", 512, NULL, 2, NULL) != pdPASS) {
-		//SerialConsoleWriteString("ERR: Fingerprint task could not be initialized!\r\n");
-	//}
-	//snprintf(bufferPrint, 64, "Heap after starting fingerprint module: %d\r\n", xPortGetFreeHeapSize());
-	//SerialConsoleWriteString(bufferPrint);
+	if (xTaskCreate(fingerprint_task, "FINGERPRINT_TASK", 512, NULL, 2, NULL) != pdPASS) {
+		SerialConsoleWriteString("ERR: Fingerprint task could not be initialized!\r\n");
+	}
+	snprintf(bufferPrint, 64, "Heap after starting fingerprint module: %d\r\n", xPortGetFreeHeapSize());
+	SerialConsoleWriteString(bufferPrint);
 }
 
 /******************************************************************************
