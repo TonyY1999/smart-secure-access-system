@@ -61,6 +61,8 @@ int adxl_init(void);
  */
 int adxl_read_xyz(int16_t *x, int16_t *y, int16_t *z);
 
+void vIMUTask(void *pvParameters);
+
 #ifdef __cplusplus
 }
 #endif

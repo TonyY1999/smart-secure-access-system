@@ -95,3 +95,30 @@ int adxl_read_xyz(int16_t *x, int16_t *y, int16_t *z)
     *z = (int16_t)(data[5] << 8 | data[4]);
     return 0;
 }
+
+// IMU task function
+void vIMUTask(void *pvParameters) {
+	SerialConsoleWriteString("Initializing IMU...\r\n");
+
+	if (adxl_init() != 0) {
+		SerialConsoleWriteString("IMU initialization failed!\r\n");
+		vTaskDelete(NULL);
+	}
+
+	SerialConsoleWriteString("IMU initialized successfully.\r\n");
+	
+	int16_t x, y, z;
+	while (1) {
+		if (adxl_read_xyz(&x, &y, &z) == 0)
+		{
+			char msg[64];
+			snprintf(msg, sizeof(msg), "Accel X: %d, Y: %d, Z: %d\r\n", x, y, z);
+			SerialConsoleWriteString(msg);
+		}
+		else {
+			SerialConsoleWriteString("Error reading ADXL345 data!\r\n");
+		}
+		
+		vTaskDelay(pdMS_TO_TICKS(50));
+	}
+}
