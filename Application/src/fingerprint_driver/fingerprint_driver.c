@@ -10,7 +10,7 @@
  ******************************************************************************/
 #include "fingerprint_driver.h"
 #include "SerialConsole.h"
-//#include "servo_driver.h"
+#include "servo_driver/servo_driver.h"
 #include <asf.h>
 
 /******************************************************************************
@@ -25,6 +25,9 @@ static struct usart_module fingerprint_usart_instance;
 static SemaphoreHandle_t rx_semaphore;
 
 extern TaskHandle_t servoTaskHandle;
+
+uint8_t add_id = 0;
+uint8_t delete_id = 0;
 
 /******************************************************************************
  * Forward Declarations
@@ -60,7 +63,7 @@ void fingerprint_init()
 }
 
 // Detecting finger and store the detected finger image in ImageBuffer
-uint8_t gen_img() {
+int8_t gen_img() {
 	uint8_t cmd[] = GEN_IMG_CMD;
 	fingerprint_send_packet(cmd, sizeof(cmd));
 	
@@ -78,7 +81,7 @@ uint8_t gen_img() {
 }
 
 // Generate character file from the original finger image in ImageBuffer and store the file in CharBuffer1.
-uint8_t gen_cf_to_b1() {
+int8_t gen_cf_to_b1() {
 	uint8_t cmd[] = GEN_CF_TO_B1_CMD;
 	fingerprint_send_packet(cmd, sizeof(cmd));
 	
@@ -96,7 +99,7 @@ uint8_t gen_cf_to_b1() {
 }
 
 // Generate character file from the original finger image in ImageBuffer and store the file in CharBuffer2.
-uint8_t gen_cf_to_b2() {
+int8_t gen_cf_to_b2() {
 	uint8_t cmd[] = GEN_CF_TO_B2_CMD;
 	fingerprint_send_packet(cmd, sizeof(cmd));
 	
@@ -114,7 +117,7 @@ uint8_t gen_cf_to_b2() {
 }
 
 // combine information of character files from CharBuffer1 and CharBuffer2 and generate a template which is stored back in both CharBuffer1 and CharBuffer2
-uint8_t reg_model() {
+int8_t reg_model() {
 	uint8_t cmd[] = REG_MODEL_CMD;
 	fingerprint_send_packet(cmd, sizeof(cmd));
 	
@@ -132,7 +135,7 @@ uint8_t reg_model() {
 }
 
 // Store the template of specified buffer (Buffer1) at the designated location of Flash library
-uint8_t store_finger(uint8_t id) {
+int8_t store_finger(uint8_t id) {
 	uint8_t cmd[] = STORE_CMD(id);
 	fingerprint_send_packet(cmd, sizeof(cmd));
 	
@@ -150,18 +153,21 @@ uint8_t store_finger(uint8_t id) {
 }
 
 // Enroll fingerprint
-uint8_t fingerprint_enroll(uint8_t id) {
+int8_t fingerprint_enroll() {
+	add_id = read_temp_num();
+	
     CHECK_SUCCESS(gen_img());
     CHECK_SUCCESS(gen_cf_to_b1());
     CHECK_SUCCESS(gen_img());
     CHECK_SUCCESS(gen_cf_to_b2());
     CHECK_SUCCESS(reg_model());
-    CHECK_SUCCESS(store_finger(id));
+    CHECK_SUCCESS(store_finger(add_id));
+	
     return 0;
 }
 
 // Delete fingerprint
-uint8_t fingerprint_delete(uint8_t id) {
+int8_t fingerprint_delete(uint8_t id) {
 	uint8_t cmd[] = DELETE_CMD(id);
 	fingerprint_send_packet(cmd, sizeof(cmd));
 	
@@ -178,14 +184,29 @@ uint8_t fingerprint_delete(uint8_t id) {
 	}
 }
 
+// Empty fingerprint library
+int8_t fingerprint_empty() {
+	uint8_t cmd[] = EMPTY_CMD;
+	fingerprint_send_packet(cmd, sizeof(cmd));
+	
+	uint8_t ack[12];
+	fingerprint_read_response(ack, sizeof(ack));
+	
+	if(ack[9] == 0) {
+		LogMessage(LOG_INFO_LVL, "Fingerprint successfully emptied");
+		return ack[9];
+	}
+	else {
+		LogMessage(LOG_ERROR_LVL, "Fingerprint empty failed. Code: 0x%02X.\r\n", ack[9]);
+		return -1;
+	}
+}
+
 // Search fingerprint
-uint8_t fingerprint_search() {
+int fingerprint_search() {
 	// scan fingerprint
 	CHECK_SUCCESS(gen_img());
 	CHECK_SUCCESS(gen_cf_to_b1());
-	//CHECK_SUCCESS(gen_img());
-	//CHECK_SUCCESS(gen_cf_to_b2());
-	//CHECK_SUCCESS(reg_model());
 	
 	// search fingerprint
 	uint8_t cmd[] = SEARCH_CMD;
@@ -196,7 +217,7 @@ uint8_t fingerprint_search() {
 	
 	if(ack[9] == 0) {
 		LogMessage(LOG_INFO_LVL, "Fingerprint matched. ID = %d.\r\n", ack[11]);
-		return ack[9];
+		return ack[11];
 	}
 	else {
 		LogMessage(LOG_ERROR_LVL, "Search failed. Code: 0x%02X.\r\n.", ack[9]);
@@ -205,7 +226,7 @@ uint8_t fingerprint_search() {
 }
 
 // Read the number of fingers stored in library
-uint8_t read_temp_num()
+int read_temp_num()
 {
 	uint8_t cmd[] = TEMP_NUM_CMD;
 	fingerprint_send_packet(cmd, sizeof(cmd));
@@ -221,44 +242,6 @@ uint8_t read_temp_num()
 		LogMessage(LOG_ERROR_LVL, "Read template count failed. Code: 0x%02X", ack[9]);
 		return -1;
 	}
-}
-
-// Set the fingerprint sensor baud rate to 9600
-void set_baud_rate_9600()
-{
-	uint8_t cmd[] = {
-		0xEF, 0x01,             // Header
-		0xFF, 0xFF, 0xFF, 0xFF, // Address
-		0x01,                   // Package ID (Command packet)
-		0x00, 0x05,             // Package length (5 bytes)
-		0x0E,                   // Instruction code (SetSysPara)
-		0x04,                   // Parameter number (Baud rate)
-		0x01,                   // New baud rate (e.g., 1 for 9600bps)
-		0x00, 0x19
-	};
-
-	fingerprint_send_packet(cmd, 14);
-
-	uint8_t ack[12];
-	fingerprint_read_response(ack, sizeof(ack));
-	
-	if (ack[9] == 0)
-	{
-		LogMessage(LOG_INFO_LVL, "Parameter setting complete.\r\n");
-	}
-	else {
-		LogMessage(LOG_ERROR_LVL, "Parameter setting failed, code: 0x%02X.\r\n", ack[9]);
-	}
-}
-
-// Read fingerprint sensor system parameters
-void read_sys_para()
-{
-	uint8_t cmd[] = READ_SYS_CMD;
-	fingerprint_send_packet(cmd, sizeof(cmd));
-	
-	uint8_t ack[28];
-	fingerprint_read_response(ack, sizeof(ack));
 }
 
 /******************************************************************************
@@ -285,15 +268,6 @@ static void fingerprint_read_response(uint8_t* buffer, uint16_t length)
 	}
 }
 
-static check_success(uint8_t res) {
-	if (res != 0)
-	{
-		return -1;
-	}
-	
-	return res;	
-}
-
 /******************************************************************************
  * Callback Function
  ******************************************************************************/
@@ -308,20 +282,15 @@ void fingerprint_read_callback(struct usart_module *const usart_module)
  * Task Function
  ******************************************************************************/
 void fingerprint_task(void *pvParameters){
-	fingerprint_init();
-	
-	read_temp_num();
-	
 	while (1)
 	{
-		//if (fingerprint_search() == 0)
-		//{
-			//vTaskResume(servoTaskHandle);
-		//}
-		read_temp_num();
-		vTaskDelay(pdMS_TO_TICKS(1000));
-		fingerprint_delete(2);
-		vTaskDelay(pdMS_TO_TICKS(1000));
-		fingerprint_delete(1);
+		if (fingerprint_search() != -1)
+		{
+			pwm_set_servo_angle_unlock_door();
+			vTaskDelay(pdMS_TO_TICKS(5000));
+			pwm_set_servo_angle_lock_door();
+		}
+		
+		vTaskDelay(pdMS_TO_TICKS(100));
 	}
 }

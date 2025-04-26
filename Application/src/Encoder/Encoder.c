@@ -63,15 +63,19 @@ void encoder_init(void) {
 	extint_register_callback(encoder_a_callback, 4, EXTINT_CALLBACK_TYPE_DETECT);
 	extint_chan_enable_callback(4, EXTINT_CALLBACK_TYPE_DETECT);
 
-	// PB11 callback register
+	// PB11 callback register //PCBA PB22
 	extint_chan_get_config_defaults(&config_extint_chan);
 	config_extint_chan.gpio_pin           = ENCODER_BUTTON_PIN;
-	config_extint_chan.gpio_pin_mux       = MUX_PB11A_EIC_EXTINT11;
+	config_extint_chan.gpio_pin_mux       = MUX_PB22A_EIC_EXTINT6;
+	//config_extint_chan.gpio_pin_mux       = MUX_PB11A_EIC_EXTINT11;
 	config_extint_chan.detection_criteria = EXTINT_DETECT_FALLING;
 	config_extint_chan.filter_input_signal = true;
-	extint_chan_set_config(11, &config_extint_chan);
-	extint_register_callback(encoder_button_callback, 11, EXTINT_CALLBACK_TYPE_DETECT);
-	extint_chan_enable_callback(11, EXTINT_CALLBACK_TYPE_DETECT);
+	extint_chan_set_config(6, &config_extint_chan);
+	extint_register_callback(encoder_button_callback, 6, EXTINT_CALLBACK_TYPE_DETECT);
+	extint_chan_enable_callback(6, EXTINT_CALLBACK_TYPE_DETECT);
+	//extint_chan_set_config(11, &config_extint_chan);
+	//extint_register_callback(encoder_button_callback, 11, EXTINT_CALLBACK_TYPE_DETECT);
+	//extint_chan_enable_callback(11, EXTINT_CALLBACK_TYPE_DETECT);
 }
 
 int8_t encoder_get_rotation(void) {
