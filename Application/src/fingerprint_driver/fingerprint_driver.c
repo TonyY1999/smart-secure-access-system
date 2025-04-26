@@ -191,8 +191,10 @@ int8_t fingerprint_enroll() {
 }
 
 // Delete fingerprint
-int8_t fingerprint_delete(uint8_t id) {
-	uint8_t cmd[] = DELETE_CMD(id);
+int8_t fingerprint_delete() {
+	int res = fingerprint_search();
+	
+	uint8_t cmd[] = DELETE_CMD(res);
 	fingerprint_send_packet(cmd, sizeof(cmd));
 	
 	uint8_t ack[12];
@@ -306,15 +308,17 @@ void fingerprint_read_callback(struct usart_module *const usart_module)
  * Task Function
  ******************************************************************************/
 void fingerprint_task(void *pvParameters){
-	while (1)
-	{
-		if (fingerprint_search() != -1)
-		{
-			pwm_set_servo_angle_unlock_door();
-			vTaskDelay(pdMS_TO_TICKS(5000));
-			pwm_set_servo_angle_lock_door();
-		}
-		
-		vTaskDelay(pdMS_TO_TICKS(100));
-	}
+	//read_temp_num();
+	int8_t res = find_smallest_index();
+	//while (1)
+	//{
+		//if (fingerprint_search() != -1)
+		//{
+			//pwm_set_servo_angle_unlock_door();
+			//vTaskDelay(pdMS_TO_TICKS(5000));
+			//pwm_set_servo_angle_lock_door();
+		//}
+		//
+		//vTaskDelay(pdMS_TO_TICKS(100));s
+	//}
 }
