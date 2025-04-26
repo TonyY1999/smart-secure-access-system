@@ -13,6 +13,8 @@
 #include "SerialConsole.h"
 #include "I2cDriver.h"
 #include "adxl345_imu.h"
+#include "Buzzer/Buzzer.h"
+#include "servo/servo_driver.h"
 
 /******************************************************************************
  * Variables
@@ -96,8 +98,10 @@ int adxl_read_xyz(int16_t *x, int16_t *y, int16_t *z)
     return 0;
 }
 
-// IMU task function
-void vIMUTask(void *pvParameters) {
+#define VIBRATION_THRESHOLD 500
+
+void vIMUTask(void *pvParameters)
+{
 	SerialConsoleWriteString("Initializing IMU...\r\n");
 
 	if (adxl_init() != 0) {
@@ -108,12 +112,42 @@ void vIMUTask(void *pvParameters) {
 	SerialConsoleWriteString("IMU initialized successfully.\r\n");
 	
 	int16_t x, y, z;
+	int16_t prev_x = 0, prev_y = 0, prev_z = 0;
 	while (1) {
 		if (adxl_read_xyz(&x, &y, &z) == 0)
 		{
+			//char msg[64];
+			//snprintf(msg, sizeof(msg), "Accel X: %d, Y: %d, Z: %d\r\n", x, y, z);
+			//SerialConsoleWriteString(msg);
+			
 			char msg[64];
 			snprintf(msg, sizeof(msg), "Accel X: %d, Y: %d, Z: %d\r\n", x, y, z);
 			SerialConsoleWriteString(msg);
+
+			// ??????????
+			if (abs(x - prev_x) > VIBRATION_THRESHOLD ||
+			abs(y - prev_y) > VIBRATION_THRESHOLD ||
+			abs(z - prev_z) > VIBRATION_THRESHOLD){
+
+				SerialConsoleWriteString("!!! VIBRATION DETECTED !!! Triggering buzzer!\r\n");
+
+				// ??????????
+				port_pin_set_output_level(LED_0_PIN,LED_0_ACTIVE);
+				buzzer_on();	
+				pwm_set_servo_angle_unlock_door();
+				vTaskDelay(pdMS_TO_TICKS(5000));
+
+				pwm_set_servo_angle_lock_door();	
+				
+			}
+
+			// ??????????????
+			prev_x = x;
+			prev_y = y;
+			prev_z = z;
+			
+							
+			
 		}
 		else {
 			SerialConsoleWriteString("Error reading ADXL345 data!\r\n");
