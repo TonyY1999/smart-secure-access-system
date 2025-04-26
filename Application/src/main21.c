@@ -88,11 +88,11 @@ static void StartTasks(void) {
     SerialConsoleWriteString(bufferPrint);
 
     // initialize CLI task here
-    if (xTaskCreate(vCommandConsoleTask, "CLI_TASK", CLI_TASK_SIZE, NULL, 0, &cliTaskHandle) != pdPASS) {
-	    SerialConsoleWriteString("ERR: CLI task could not be initialized!\r\n");
-    }
-    snprintf(bufferPrint, 64, "Heap after starting CLI: %d\r\n", xPortGetFreeHeapSize());
-    SerialConsoleWriteString(bufferPrint);
+    //if (xTaskCreate(vCommandConsoleTask, "CLI_TASK", CLI_TASK_SIZE, NULL, 0, &cliTaskHandle) != pdPASS) {
+	    //SerialConsoleWriteString("ERR: CLI task could not be initialized!\r\n");
+    //}
+    //snprintf(bufferPrint, 64, "Heap after starting CLI: %d\r\n", xPortGetFreeHeapSize());
+    //SerialConsoleWriteString(bufferPrint);
 	
 	// initialize WIFI task here
     //if (xTaskCreate(vWifiTask, "WIFI_TASK", WIFI_TASK_SIZE, NULL, 3, &wifiTaskHandle) != pdPASS) {
@@ -109,14 +109,14 @@ static void StartTasks(void) {
 	//SerialConsoleWriteString(bufferPrint);
 	
 	// initialize servo motor task here
-	if (xTaskCreate(servo_task, "SERVO_TASK", 256, NULL, 1, &servoTaskHandle) != pdPASS) {
-		SerialConsoleWriteString("ERR: Servo task could not be initialized!\r\n");
-	}
-	snprintf(bufferPrint, 64, "Heap after starting servo motor: %d\r\n", xPortGetFreeHeapSize());
-	SerialConsoleWriteString(bufferPrint);
-	
+	//if (xTaskCreate(servo_task, "SERVO_TASK", 256, NULL, 1, &servoTaskHandle) != pdPASS) {
+		//SerialConsoleWriteString("ERR: Servo task could not be initialized!\r\n");
+	//}
+	//snprintf(bufferPrint, 64, "Heap after starting servo motor: %d\r\n", xPortGetFreeHeapSize());
+	//SerialConsoleWriteString(bufferPrint);
+	//
 	// initialize fingerprint module task here
-	if (xTaskCreate(fingerprint_task, "FINGERPRINT_TASK", 512, NULL, 2, NULL) != pdPASS) {
+	if (xTaskCreate(fingerprint_task, "FINGERPRINT_TASK", 512, NULL, 5, NULL) != pdPASS) {
 		SerialConsoleWriteString("ERR: Fingerprint task could not be initialized!\r\n");
 	}
 	snprintf(bufferPrint, 64, "Heap after starting fingerprint module: %d\r\n", xPortGetFreeHeapSize());
@@ -135,6 +135,9 @@ static void StartTasks(void) {
 void vApplicationDaemonTaskStartupHook(void) {
 	// initialize the UART console
 	InitializeSerialConsole();
+	
+	fingerprint_init();
+	config_servo();
 	
     SerialConsoleWriteString("\x0C\n\r-----Smart Secure Access System-----\r\n");
 	
