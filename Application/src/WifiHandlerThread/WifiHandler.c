@@ -71,6 +71,7 @@ static unsigned char mqtt_send_buffer[MAIN_MQTT_BUFFER_SIZE];
 volatile bool should_reset = false;
 
 
+
 /******************************************************************************
  * Forward Declarations
  ******************************************************************************/
@@ -81,6 +82,7 @@ static void HTTP_DownloadFileInit(void);
 static void HTTP_DownloadFileTransaction(void);
 
 static void MQTT_HandleButtonMessages(void);
+
 /******************************************************************************
  * Callback Functions
  ******************************************************************************/
@@ -498,7 +500,7 @@ void init_storage(void)
 {
     FRESULT res;
     Ctrl_status status;
-	
+
     /* Initialize SD/MMC stack. */
     sd_mmc_init();
     while (true) {
@@ -653,7 +655,7 @@ void SubscribeHandlerBoolLed(MessageData *msgData)
 {
 	if (strncmp(msgData->message->payload, "true", 4) == 0) {
 		// turn LED on
-		port_pin_set_output_level(LED_0_PIN, LED_0_ACTIVE);  // 或你自己的 LED 控制
+		port_pin_set_output_level(LED_0_PIN, LED_0_ACTIVE);  
 		LogMessage(LOG_DEBUG_LVL, "LED turned ON\r\n");
 	}
 	else {
@@ -723,6 +725,106 @@ void SubscribeHandler(MessageData *msgData)
     }
 }
 
+/***************************************************************************************************************/
+//For add/delete fingerprint
+
+volatile bool allow_add = false;
+volatile bool allow_delete = false;
+
+void SubscribeHandlerFingerprintResponse(MessageData *msgData)
+{
+	char payload[128] = {0};
+	size_t len = msgData->message->payloadlen;
+
+	// ?????????????? '\0' ???
+	if (len >= sizeof(payload)) {
+		len = sizeof(payload) - 1;
+	}
+	memcpy(payload, msgData->message->payload, len);
+	payload[len] = '\0';
+
+	SerialConsoleWriteString("Received MQTT from cloud: ");
+	SerialConsoleWriteString(payload);
+	SerialConsoleWriteString("\r\n");
+
+	// ? ????????? result ????????
+	if (!strstr(payload, "\"result\"")) {
+		SerialConsoleWriteString("Ignored non-response message.\r\n");
+		return;
+	}
+
+	// === ADD ===
+	if (strstr(payload, "\"action\":\"add\"") && strstr(payload, "\"result\":\"allow\"")) {
+		allow_add = true;
+		SerialConsoleWriteString("Cloud allowed ADD.\r\n");
+	}
+	if (strstr(payload, "\"action\":\"add\"") && strstr(payload, "\"result\":\"deny\"")) {
+		allow_add = false;
+		SerialConsoleWriteString("Cloud denied ADD.\r\n");
+	}
+
+	// === DELETE ===
+	if (strstr(payload, "\"action\":\"delete\"") && strstr(payload, "\"result\":\"allow\"")) {
+		allow_delete = true;
+		SerialConsoleWriteString("Cloud allowed DELETE.\r\n");
+	}
+	if (strstr(payload, "\"action\":\"delete\"") && strstr(payload, "\"result\":\"deny\"")) {
+		allow_delete = false;
+		SerialConsoleWriteString("Cloud denied DELETE.\r\n");
+	}
+}
+bool cloud_add_permission_granted(void)
+{
+    return allow_add;
+}
+
+bool cloud_delete_permission_granted(void)
+{
+    return allow_delete;
+}
+
+void reset_cloud_permissions(void)
+{
+    allow_add = false;
+    allow_delete = false;
+}
+
+/**************************************************************************************************************/
+		  
+void MQTT_UnlockHandler(MessageData *md)
+{
+	SerialConsoleWriteString("Enter MQTT_UnlockHandler\r\n");
+	MQTTMessage* message = md->message;
+	MQTTString* topicName = md->topicName;
+
+	char payload[64] = {0};
+	memcpy(payload, message->payload, message->payloadlen);
+	payload[message->payloadlen] = '\0';
+
+	SerialConsoleWriteString("Topic: ");
+	SerialConsoleWriteString(topicName->lenstring.data);
+	SerialConsoleWriteString("\r\nPayload: ");
+	SerialConsoleWriteString(payload);
+	SerialConsoleWriteString("\r\n");
+
+	if (strstr(payload, "\"action\":\"unlock\"") != NULL) {
+		SerialConsoleWriteString("Action matched: UNLOCK\r\n");
+		//servo motor
+		
+		pwm_set_servo_angle_unlock_door();
+		vTaskDelay(pdMS_TO_TICKS(5000));
+
+		pwm_set_servo_angle_lock_door();
+
+		SerialConsoleWriteString("Servo set.\r\n");
+		
+		port_pin_set_output_level(LED_0_PIN, LED_0_ACTIVE);	
+
+	}
+}
+
+/**************************************************************************************************************/
+
 /**
  * \brief Callback to get the MQTT status update.
  *
@@ -761,10 +863,15 @@ static void mqtt_callback(struct mqtt_module *module_inst, int type, union mqtt_
         case MQTT_CALLBACK_CONNECTED:
             if (data->connected.result == MQTT_CONN_RESULT_ACCEPT) {
                 /* Subscribe chat topic. */
-                mqtt_subscribe(module_inst, GAME_TOPIC_IN, 2, SubscribeHandlerGameTopic);
-                mqtt_subscribe(module_inst, LED_TOPIC, 2, SubscribeHandlerLedTopic);
-                mqtt_subscribe(module_inst, IMU_TOPIC, 2, SubscribeHandlerImuTopic);
+                //mqtt_subscribe(module_inst, GAME_TOPIC_IN, 2, SubscribeHandlerGameTopic);
+                //mqtt_subscribe(module_inst, LED_TOPIC, 2, SubscribeHandlerLedTopic);
+                //mqtt_subscribe(module_inst, IMU_TOPIC, 2, SubscribeHandlerImuTopic);
 				mqtt_subscribe(module_inst, "a10g/debug/led", 2, SubscribeHandlerBoolLed);
+				
+				mqtt_subscribe(module_inst, "a10g/fingerprint/cmd", 2, SubscribeHandlerFingerprintResponse);
+				
+				mqtt_subscribe(module_inst, "remote/unlock", 2, MQTT_UnlockHandler);
+
 				
 
                 /* Enable USART receiving callback. */
@@ -1009,6 +1116,25 @@ static void MQTT_HandleButtonMessages(void)
 	}
 }
 
+/*****************************************************************************************************/
+// add/delete fingerprint
+
+void cloud_request_add(uint8_t finger_id) {
+	char payload[64];
+	snprintf(payload, sizeof(payload), "{\"request\":\"add\",\"finger_id\":%d}", finger_id);
+	mqtt_publish(&mqtt_inst, "a10g/library/fingerprint", payload, strlen(payload), 2, 0);
+	SerialConsoleWriteString("Sent ADD request to cloud.\r\n");
+}
+
+void cloud_request_delete(uint8_t finger_id) {
+	char payload[64];
+	snprintf(payload, sizeof(payload), "{\"request\":\"delete\",\"finger_id\":%d}", finger_id);
+	mqtt_publish(&mqtt_inst, "a10g/library/fingerprint", payload, strlen(payload), 2, 0);
+	SerialConsoleWriteString("Sent DELETE request to cloud.\r\n");
+}
+
+/*****************************************************************************************************/
+
 /**
  * \brief Main application function.
  *
@@ -1043,7 +1169,7 @@ void vWifiTask(void *pvParameters)
     configure_mqtt();
 
     /* Initialize SD/MMC storage. */
-    init_storage();
+    //init_storage();
 
     /*Initialize BUTTON 0 as an external interrupt*/
     configure_extint_channel();
@@ -1057,7 +1183,34 @@ void vWifiTask(void *pvParameters)
     /* Initialize Wi-Fi driver with data and status callbacks. */
     param.pfAppWifiCb = wifi_cb;
     ret = m2m_wifi_init(&param);
-		
+	
+	// debug
+//tstrM2mRev fw;
+//sint8 res = nm_get_firmware_full_info(&fw);
+//
+//if (res == M2M_SUCCESS || res == M2M_ERR_FW_VER_MISMATCH) {
+	//char msg[256];
+	//snprintf(msg, sizeof(msg),
+	//"FW Version   : %u.%u.%u\r\n"
+	//"DRV Version  : %u.%u.%u\r\n"
+	//"SVN          : %u\r\n"
+	//"Build Date   : %s\r\n"
+	//"Build Time   : %s\r\n"
+	//"Chip ID      : 0x%08X\r\n",
+	//fw.u8FirmwareMajor, fw.u8FirmwareMinor, fw.u8FirmwarePatch,
+	//fw.u8DriverMajor, fw.u8DriverMinor, fw.u8DriverPatch,
+	//fw.u16FirmwareSvnNum,
+	//fw.BuildDate,
+	//fw.BuildTime,
+	//fw.u32Chipid);
+//
+	//SerialConsoleWriteString(msg);
+	//} else {
+	//SerialConsoleWriteString("Failed to read firmware version!\r\n");
+//}
+	
+	
+	
     if (M2M_SUCCESS != ret) {
         LogMessage(LOG_DEBUG_LVL, "main: m2m_wifi_init call error! (res %d)\r\n", ret);
         while (1) {
@@ -1086,6 +1239,7 @@ void vWifiTask(void *pvParameters)
         switch (wifiStateMachine) {
             case (WIFI_MQTT_INIT): {
                 MQTT_InitRoutine();
+
                 break;
             }
 
@@ -1166,20 +1320,5 @@ int WifiAddImuDataToQueue(struct ImuDataPacket *imuPacket)
 int WifiAddDistanceDataToQueue(uint16_t *distance)
 {
     int error = xQueueSend(xQueueDistanceBuffer, distance, (TickType_t)10);
-    return error;
-}
-
-/**
- void WifiAddGameToQueue(struct ImuDataPacket* imuPacket)
- * @brief	Adds an game to the queue to send via MQTT. Game data must have 0xFF IN BYTES THAT WILL NOT BE SENT!
- * @param[out]
-
- * @return		Returns pdTrue if data can be added to queue, pdFalse if queue is full
- * @note
-
-*/
-int WifiAddGameDataToQueue(struct GameDataPacket *game)
-{
-    int error = xQueueSend(xQueueGameBuffer, game, (TickType_t)10);
     return error;
 }

@@ -26,6 +26,8 @@ extern "C" {
 #include "socket/include/socket.h"
 #include "stdio_serial.h"
 
+#include "servo_driver/servo_driver.h"
+
 /******************************************************************************
  * Defines
  ******************************************************************************/
@@ -43,8 +45,14 @@ extern "C" {
 #define MAIN_WLAN_SSID "AirPennNet-Device"           /**< Destination SSID. Change to your WIFI SSID */
 #define MAIN_WLAN_PSK "penn1740wifi"      /**< Password for Destination SSID. Change to your password. Please dont hack my WiFi router */
 
-//#define MAIN_WLAN_SSID "WhiteSky-Sansom"
+//#define MAIN_WLAN_SSID "WhiteSky-Sansom"     
 //#define MAIN_WLAN_PSK "2sntqbnm"
+
+
+//#define MAIN_WLAN_SSID "AWSMNA"          
+//#define MAIN_WLAN_PSK "ZY123456"
+
+
 
 #define MAIN_WLAN_AUTH M2M_WIFI_SEC_WPA_PSK /**< Security manner */
 #endif                                      /* SECRET_H_ */
@@ -128,6 +136,7 @@ struct RgbColorPacket {
 
 #endif
 
+
 #define LED_TOPIC_LED_OFF "false"
 #define LED_TOPIC_LED_ON "true"
 
@@ -172,10 +181,20 @@ void SubscribeHandlerDistanceTopic(MessageData *msgData);
 void configure_extint_channel(void);
 void configure_extint_callbacks(void);
 
+
 void SubscribeHandlerBoolLed(MessageData *msgData);
 
 bool is_state_set(download_state mask);
 
+void cloud_request_add(uint8_t finger_id);
+void cloud_request_delete(uint8_t finger_id);
+
+void SubscribeHandlerFingerprintResponse(MessageData *msgData);
+bool cloud_add_permission_granted(void);
+bool cloud_delete_permission_granted(void);
+void reset_cloud_permissions(void);
+
+void MQTT_UnlockHandler(MessageData *md);
 
 #ifdef __cplusplus
 }

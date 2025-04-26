@@ -23,7 +23,7 @@
  #include "MCHP_ATWx.h"
  
   #include "Encoder/Encoder.h"
-   #include "Buzzer/Buzzer.h"
+   #include "buzzer_driver/Buzzer.h"
 /******************************************************************************
  * Local Functions
  ******************************************************************************/

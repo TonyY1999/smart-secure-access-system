@@ -13,8 +13,8 @@
 #include "SerialConsole.h"
 #include "I2cDriver.h"
 #include "adxl345_imu.h"
-#include "Buzzer/Buzzer.h"
-#include "servo/servo_driver.h"
+#include "buzzer_driver/Buzzer.h"
+#include "servo_driver/servo_driver.h"
 
 /******************************************************************************
  * Variables

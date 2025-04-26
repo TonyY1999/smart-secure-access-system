@@ -152,16 +152,40 @@ int8_t store_finger(uint8_t id) {
 	}
 }
 
+int8_t find_smallest_index() {
+	uint8_t cmd[] = READ_INDEX_CMD;
+	fingerprint_send_packet(cmd, sizeof(cmd));
+
+	uint8_t ack[44];
+	fingerprint_read_response(ack, sizeof(ack));
+
+	if (ack[9] == 0) {
+		for (uint8_t byte = 0; byte < 32; byte++)
+		{
+			for (uint8_t bit = 0; bit < 8; bit++)
+			{
+				if ((ack[10 + byte] >> bit) & 0x01)
+				{
+					return byte * 8 + bit;
+				}
+			}
+		}
+		
+		return -1;
+	}
+	else {
+		return -1;
+	}
+}
+
 // Enroll fingerprint
 int8_t fingerprint_enroll() {
-	add_id = read_temp_num();
-	
     CHECK_SUCCESS(gen_img());
     CHECK_SUCCESS(gen_cf_to_b1());
     CHECK_SUCCESS(gen_img());
     CHECK_SUCCESS(gen_cf_to_b2());
     CHECK_SUCCESS(reg_model());
-    CHECK_SUCCESS(store_finger(add_id));
+    CHECK_SUCCESS(store_finger(find_smallest_index()));
 	
     return 0;
 }
