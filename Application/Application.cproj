@@ -1271,6 +1271,9 @@
     <Compile Include="src\ASF\common\services\crc32\crc32.c">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="src\WifiHandlerThread\WifiHandler.c">
+      <SubType>compile</SubType>
+    </Compile>
     <None Include="src\ASF\sam0\drivers\sercom\i2c\i2c_master_interrupt.h">
       <SubType>compile</SubType>
     </None>
@@ -1398,9 +1401,6 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\servo_driver\servo_driver.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\WifiHandlerThread\WifiHandler.c">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\WifiHandlerThread\WifiHandler.h">

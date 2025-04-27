@@ -23,10 +23,10 @@
 void buzzer_on(void)
 {
 	SerialConsoleWriteString("Setting buzzer match[0] = 6000\r\n");
-	tcc_set_compare_value(&tcc_instance_tcc0, 0, 8500); // 50% ????
+	//tcc_set_compare_value(&tcc_instance_tcc0, 0, 8500); // 50% ????
 }
 
 void buzzer_off(void)
 {
-	tcc_set_compare_value(&tcc_instance_tcc0, 0, 0); // ????
+	//tcc_set_compare_value(&tcc_instance_tcc0, 0, 0); // ????
 }
