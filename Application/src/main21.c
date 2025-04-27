@@ -91,19 +91,12 @@ static void StartTasks(void) {
     SerialConsoleWriteString(bufferPrint);
 	
 	// initialize WIFI task here
-	//if (xTaskCreate(vWifiTask, "WIFI_TASK", 550, NULL, 5, &wifiTaskHandle) != pdPASS) {
-		//SerialConsoleWriteString("ERR: WIFI task could not be initialized!\r\n");
-	//}
-	//snprintf(bufferPrint, 64, "Heap after starting WIFI: %d\r\n", xPortGetFreeHeapSize());
-	//SerialConsoleWriteString(bufferPrint);
+	if (xTaskCreate(vWifiTask, "WIFI_TASK", 550, NULL, 5, &wifiTaskHandle) != pdPASS) {
+		SerialConsoleWriteString("ERR: WIFI task could not be initialized!\r\n");
+	}
+	snprintf(bufferPrint, 64, "Heap after starting WIFI: %d\r\n", xPortGetFreeHeapSize());
+	SerialConsoleWriteString(bufferPrint);
 	
-	 // initialize init task here
- 	 //if (xTaskCreate(init_task, "INIT_TASK", 256, NULL, 5, NULL) != pdPASS) {
- 		 //SerialConsoleWriteString("ERR: init task could not be initialized!\r\n");
- 	 //}
- 	 //snprintf(bufferPrint, 64, "Heap after init task: %d\r\n", xPortGetFreeHeapSize());
- 	 //SerialConsoleWriteString(bufferPrint);
-	 
 	// initialize LCD module task here
  	//if (xTaskCreate(vLCDTask, "LCD_TASK", 256, NULL, 5, NULL) != pdPASS) {
 	 	//SerialConsoleWriteString("ERR: LCD task could not be initialized!\r\n");
@@ -112,14 +105,14 @@ static void StartTasks(void) {
  	//SerialConsoleWriteString(bufferPrint);
 
 	// initialize fingerprint module task here
-	//if (xTaskCreate(fingerprint_task, "FINGERPRINT_TASK", 350, NULL, 3, NULL) != pdPASS) {
-		//SerialConsoleWriteString("ERR: Fingerprint task could not be initialized!\r\n");
-	//}
-	//snprintf(bufferPrint, 64, "Heap after starting fingerprint module: %d\r\n", xPortGetFreeHeapSize());
-	//SerialConsoleWriteString(bufferPrint);
+	if (xTaskCreate(fingerprint_task, "FINGERPRINT_TASK", 512, NULL, 3, NULL) != pdPASS) {
+		SerialConsoleWriteString("ERR: Fingerprint task could not be initialized!\r\n");
+	}
+	snprintf(bufferPrint, 64, "Heap after starting fingerprint module: %d\r\n", xPortGetFreeHeapSize());
+	SerialConsoleWriteString(bufferPrint);
 	
 	// initialize IMU task here
-	if (xTaskCreate(vIMUTask, "IMU_TASK", 512, NULL, 1, NULL) != pdPASS) {
+	if (xTaskCreate(vIMUTask, "IMU_TASK", 200, NULL, 5, NULL) != pdPASS) {
 		SerialConsoleWriteString("ERR: IMU task could not be initialized!\r\n");
 	}
 	snprintf(bufferPrint, 64, "Heap after starting IMU: %d\r\n", xPortGetFreeHeapSize());
@@ -192,26 +185,4 @@ void vApplicationStackOverflowHook(void) {
  */
 void vApplicationTickHook(void) { 
 	SysTick_Handler_MQTT(); 
-}
-
-void init_task(void *param)
-{
-	// initialize fingerprint module
-	fingerprint_init();
-	config_servo();
-	
-	// initialize LCD
-	lcd_init();
-	delay_cycles_ms(200);
-	
-	LCD_setScreen(rgb565(0, 0, 0));
-	LCD_drawMenu(0);
-	encoder_init();
-	
-	// initialize IMU
-	adxl_init();
-	
-	while(1) {
-		vTaskDelay(pdMS_TO_TICKS(10000));
-	}
 }

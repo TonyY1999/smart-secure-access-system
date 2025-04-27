@@ -29,6 +29,8 @@
 #include "LCD/ST7735.h"
 #include "LCD/LCD_GFX.h"
 
+#include "buzzer_driver/Buzzer.h"
+
 #include <asf.h>
 
 /******************************************************************************
@@ -331,10 +333,23 @@ void fingerprint_task(void *pvParameters){
 		int finger_id = fingerprint_search();
 		if (finger_id != -1)
 		{
+			
 			cloud_send_finger_ID(finger_id);
-			pwm_set_servo_angle_unlock_door();
-			vTaskDelay(pdMS_TO_TICKS(5000));
-			pwm_set_servo_angle_lock_door();
+			buzzer_init();
+			
+			buzzer_on();
+			vTaskDelay(pdMS_TO_TICKS(2000));
+							config_servo();
+							pwm_set_servo_angle_unlock_door();
+							vTaskDelay(pdMS_TO_TICKS(1000));
+							pwm_set_servo_angle_lock_door();
+									
+			//config_servo();
+			//pwm_set_servo_angle_unlock_door();
+			//vTaskDelay(pdMS_TO_TICKS(5000));
+			//pwm_set_servo_angle_lock_door();
+			
+
 		}
 		
 		vTaskDelay(pdMS_TO_TICKS(100));

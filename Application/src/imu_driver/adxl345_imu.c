@@ -102,6 +102,8 @@ int adxl_read_xyz(int16_t *x, int16_t *y, int16_t *z)
 
 void vIMUTask(void *pvParameters)
 {	
+	adxl_init();
+	
 	int16_t x, y, z;
 	int16_t prev_x = 0, prev_y = 0, prev_z = 0;
 	while (1) {
@@ -115,22 +117,20 @@ void vIMUTask(void *pvParameters)
 			snprintf(msg, sizeof(msg), "Accel X: %d, Y: %d, Z: %d\r\n", x, y, z);
 			SerialConsoleWriteString(msg);
 
-			// ??????????
 			if (abs(x - prev_x) > VIBRATION_THRESHOLD ||
 			abs(y - prev_y) > VIBRATION_THRESHOLD ||
 			abs(z - prev_z) > VIBRATION_THRESHOLD){
 
 				SerialConsoleWriteString("!!! VIBRATION DETECTED !!! Triggering buzzer!\r\n");
 
-				// ??????????
 				port_pin_set_output_level(LED_0_PIN,LED_0_ACTIVE);
-				buzzer_init();
+				//buzzer_init();
 				buzzer_on();
 				vTaskDelay(pdMS_TO_TICKS(2000));
-				config_servo();
+				
+				//config_servo();
 				pwm_set_servo_angle_unlock_door();
 				vTaskDelay(pdMS_TO_TICKS(1000));
-
 				pwm_set_servo_angle_lock_door();	
 				
 			}
@@ -140,8 +140,7 @@ void vIMUTask(void *pvParameters)
 			prev_y = y;
 			prev_z = z;
 			
-							
-			
+			vTaskDelay(pdMS_TO_TICKS(50));
 		}
 		else {
 			SerialConsoleWriteString("Error reading ADXL345 data!\r\n");

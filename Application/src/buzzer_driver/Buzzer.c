@@ -30,7 +30,7 @@ void buzzer_init(void)
 	config_tcc.counter.period = 12000;  // 4kHz Buzzer
 	config_tcc.compare.wave_generation = TCC_WAVE_GENERATION_SINGLE_SLOPE_PWM;
 
-	config_tcc.compare.match[0] = 0; // Ĭ�Ͼ���
+	config_tcc.compare.match[0] = 0; 
 	config_tcc.pins.enable_wave_out_pin[0] = true;
 	config_tcc.pins.wave_out_pin[0] = PIN_PA04E_TCC0_WO0;
 	config_tcc.pins.wave_out_pin_mux[0] = MUX_PA04E_TCC0_WO0;
