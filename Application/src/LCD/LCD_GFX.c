@@ -21,6 +21,7 @@
  #include "SerialConsole/SerialConsole.h"
  #include "imu_driver/adxl345_imu.h"
  #include "MCHP_ATWx.h"
+ #include "fingerprint_driver/fingerprint_driver.h"
  
   #include "Encoder/Encoder.h"
    #include "buzzer_driver/Buzzer.h"
@@ -196,7 +197,8 @@ void handle_view_fingerprint(void) {
 	LCD_setScreen(rgb565(0, 0, 0));
 	LCD_drawString(10, 30, "Fingerprint DB", rgb565(255,255,255), rgb565(0,0,0));
 	delay_cycles_ms(1000);
-
+	
+	int res = read_temp_num(); // print this on the screen
 
 	while (1) {
 		if (encoder_button_confirmed()) break;
@@ -209,7 +211,8 @@ void handle_view_fingerprint(void) {
 void handle_add_fingerprint(void) {
 	SerialConsoleWriteString(">>> Requesting to Add Fingerprint from Cloud\r\n");
 
-	uint8_t finger_id = 1; 
+	//uint8_t finger_id = find_smallest_index(); 
+uint8_t finger_id = 1; 
 
 	reset_cloud_permissions(); 
 	cloud_request_add(finger_id);
@@ -232,6 +235,7 @@ void handle_add_fingerprint(void) {
 		SerialConsoleWriteString("Cloud allowed, start fingerprint enroll!\r\n");
 		
 		//add fingerprint
+		//fingerprint_enroll(finger_id);
 		
 		port_pin_set_output_level(LED_0_PIN, LED_0_ACTIVE);  
 		} else {
@@ -250,7 +254,7 @@ void handle_add_fingerprint(void) {
 void handle_delete_fingerprint(void) {
 	SerialConsoleWriteString(">>> Requesting to Delete Fingerprint from Cloud\r\n");
 
-	uint8_t finger_id = 1;  
+	uint8_t finger_id = fingerprint_search();  
 
 	reset_cloud_permissions();         
 	cloud_request_delete(finger_id);   
@@ -273,6 +277,8 @@ void handle_delete_fingerprint(void) {
 		SerialConsoleWriteString("Cloud allowed delete, now deleting fingerprint...\r\n");
 		
 		//delete fingerprint
+		fingerprint_delete(finger_id);
+		
 		port_pin_set_output_level(LED_0_PIN, !LED_0_ACTIVE); 
 		} else {
 		

@@ -101,16 +101,7 @@ int adxl_read_xyz(int16_t *x, int16_t *y, int16_t *z)
 #define VIBRATION_THRESHOLD 500
 
 void vIMUTask(void *pvParameters)
-{
-	SerialConsoleWriteString("Initializing IMU...\r\n");
-
-	if (adxl_init() != 0) {
-		SerialConsoleWriteString("IMU initialization failed!\r\n");
-		vTaskDelete(NULL);
-	}
-
-	SerialConsoleWriteString("IMU initialized successfully.\r\n");
-	
+{	
 	int16_t x, y, z;
 	int16_t prev_x = 0, prev_y = 0, prev_z = 0;
 	while (1) {

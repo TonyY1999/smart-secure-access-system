@@ -45,7 +45,6 @@ static TaskHandle_t uiTaskHandle = NULL;        //!< UI task handle
 static TaskHandle_t controlTaskHandle = NULL;   //!< Control task handle
 TaskHandle_t servoTaskHandle = NULL;		//!< Serco task handle
 
-
 char bufferPrint[64];   ///< Buffer for daemon task
 
 /******************************************************************************
@@ -58,6 +57,8 @@ void vApplicationMallocFailedHook(void);
 void vApplicationDaemonTaskStartupHook(void);
 
 static void StartTasks(void);  //!< Initial task used to initialize HW before other tasks are initialized
+
+void init_task(void *param);
 
 /**
  * @brief Main application function.
@@ -88,20 +89,34 @@ int main(void) {
 static void StartTasks(void) {
     snprintf(bufferPrint, 64, "Heap before starting tasks: %d\r\n", xPortGetFreeHeapSize());
     SerialConsoleWriteString(bufferPrint);
-
-    // initialize CLI task here
-    //if (xTaskCreate(vCommandConsoleTask, "CLI_TASK", CLI_TASK_SIZE, NULL, 0, &cliTaskHandle) != pdPASS) {
-	    //SerialConsoleWriteString("ERR: CLI task could not be initialized!\r\n");
-    //}
-    //snprintf(bufferPrint, 64, "Heap after starting CLI: %d\r\n", xPortGetFreeHeapSize());
-    //SerialConsoleWriteString(bufferPrint);
 	
 	// initialize WIFI task here
-    //if (xTaskCreate(vWifiTask, "WIFI_TASK", WIFI_TASK_SIZE, NULL, 3, &wifiTaskHandle) != pdPASS) {
-	    //SerialConsoleWriteString("ERR: WIFI task could not be initialized!\r\n");
-    //}
-    //snprintf(bufferPrint, 64, "Heap after starting WIFI: %d\r\n", xPortGetFreeHeapSize());
-    //SerialConsoleWriteString(bufferPrint);
+	if (xTaskCreate(vWifiTask, "WIFI_TASK", 550, NULL, 5, &wifiTaskHandle) != pdPASS) {
+		SerialConsoleWriteString("ERR: WIFI task could not be initialized!\r\n");
+	}
+	snprintf(bufferPrint, 64, "Heap after starting WIFI: %d\r\n", xPortGetFreeHeapSize());
+	SerialConsoleWriteString(bufferPrint);
+	
+	 // initialize init task here
+ 	 //if (xTaskCreate(init_task, "INIT_TASK", 256, NULL, 5, NULL) != pdPASS) {
+ 		 //SerialConsoleWriteString("ERR: init task could not be initialized!\r\n");
+ 	 //}
+ 	 //snprintf(bufferPrint, 64, "Heap after init task: %d\r\n", xPortGetFreeHeapSize());
+ 	 //SerialConsoleWriteString(bufferPrint);
+	 
+	// initialize LCD module task here
+ 	//if (xTaskCreate(vLCDTask, "LCD_TASK", 256, NULL, 5, NULL) != pdPASS) {
+	 	//SerialConsoleWriteString("ERR: LCD task could not be initialized!\r\n");
+ 	//}
+ 	//snprintf(bufferPrint, 64, "Heap after starting LCD module: %d\r\n", xPortGetFreeHeapSize());
+ 	//SerialConsoleWriteString(bufferPrint);
+
+	// initialize fingerprint module task here
+	if (xTaskCreate(fingerprint_task, "FINGERPRINT_TASK", 350, NULL, 3, NULL) != pdPASS) {
+		SerialConsoleWriteString("ERR: Fingerprint task could not be initialized!\r\n");
+	}
+	snprintf(bufferPrint, 64, "Heap after starting fingerprint module: %d\r\n", xPortGetFreeHeapSize());
+	SerialConsoleWriteString(bufferPrint);
 	
 	// initialize IMU task here
 	if (xTaskCreate(vIMUTask, "IMU_TASK", 512, NULL, 1, NULL) != pdPASS) {
@@ -137,9 +152,6 @@ static void StartTasks(void) {
 void vApplicationDaemonTaskStartupHook(void) {
 	// initialize the UART console
 	InitializeSerialConsole();
-	
-	fingerprint_init();
-	config_servo();
 	
     SerialConsoleWriteString("\x0C\n\r-----Smart Secure Access System-----\r\n");
 	
@@ -180,4 +192,26 @@ void vApplicationStackOverflowHook(void) {
  */
 void vApplicationTickHook(void) { 
 	SysTick_Handler_MQTT(); 
+}
+
+void init_task(void *param)
+{
+	// initialize fingerprint module
+	fingerprint_init();
+	config_servo();
+	
+	// initialize LCD
+	lcd_init();
+	delay_cycles_ms(200);
+	
+	LCD_setScreen(rgb565(0, 0, 0));
+	LCD_drawMenu(0);
+	encoder_init();
+	
+	// initialize IMU
+	adxl_init();
+	
+	while(1) {
+		vTaskDelay(pdMS_TO_TICKS(10000));
+	}
 }

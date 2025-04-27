@@ -70,8 +70,6 @@ static unsigned char mqtt_send_buffer[MAIN_MQTT_BUFFER_SIZE];
 
 volatile bool should_reset = false;
 
-
-
 /******************************************************************************
  * Forward Declarations
  ******************************************************************************/
@@ -1131,6 +1129,13 @@ void cloud_request_delete(uint8_t finger_id) {
 	snprintf(payload, sizeof(payload), "{\"request\":\"delete\",\"finger_id\":%d}", finger_id);
 	mqtt_publish(&mqtt_inst, "a10g/library/fingerprint", payload, strlen(payload), 2, 0);
 	SerialConsoleWriteString("Sent DELETE request to cloud.\r\n");
+}
+
+// send ID to cloud when unlock the door
+void cloud_send_finger_ID(uint8_t finger_id) {
+	char payload[64];
+	snprintf(payload, sizeof(payload), "{\"finger_id\":%d}", finger_id);
+	mqtt_publish(&mqtt_inst, "a10g/alert/duress", payload, strlen(payload), 2, 0);
 }
 
 /*****************************************************************************************************/
