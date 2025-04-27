@@ -133,9 +133,12 @@ void vIMUTask(void *pvParameters)
 
 				// ??????????
 				port_pin_set_output_level(LED_0_PIN,LED_0_ACTIVE);
-				buzzer_on();	
+				buzzer_init();
+				buzzer_on();
+				vTaskDelay(pdMS_TO_TICKS(2000));
+				config_servo();
 				pwm_set_servo_angle_unlock_door();
-				vTaskDelay(pdMS_TO_TICKS(5000));
+				vTaskDelay(pdMS_TO_TICKS(1000));
 
 				pwm_set_servo_angle_lock_door();	
 				

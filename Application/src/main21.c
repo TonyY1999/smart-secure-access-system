@@ -102,11 +102,11 @@ static void StartTasks(void) {
     //SerialConsoleWriteString(bufferPrint);
 	
 	// initialize IMU task here
-	//if (xTaskCreate(vIMUTask, "IMU_TASK", 512, NULL, 1, NULL) != pdPASS) {
-		//SerialConsoleWriteString("ERR: IMU task could not be initialized!\r\n");
-	//}
-	//snprintf(bufferPrint, 64, "Heap after starting IMU: %d\r\n", xPortGetFreeHeapSize());
-	//SerialConsoleWriteString(bufferPrint);
+	if (xTaskCreate(vIMUTask, "IMU_TASK", 512, NULL, 1, NULL) != pdPASS) {
+		SerialConsoleWriteString("ERR: IMU task could not be initialized!\r\n");
+	}
+	snprintf(bufferPrint, 64, "Heap after starting IMU: %d\r\n", xPortGetFreeHeapSize());
+	SerialConsoleWriteString(bufferPrint);
 	
 	// initialize servo motor task here
 	//if (xTaskCreate(servo_task, "SERVO_TASK", 256, NULL, 1, &servoTaskHandle) != pdPASS) {
@@ -116,11 +116,11 @@ static void StartTasks(void) {
 	//SerialConsoleWriteString(bufferPrint);
 	//
 	// initialize fingerprint module task here
-	if (xTaskCreate(fingerprint_task, "FINGERPRINT_TASK", 512, NULL, 5, NULL) != pdPASS) {
-		SerialConsoleWriteString("ERR: Fingerprint task could not be initialized!\r\n");
-	}
-	snprintf(bufferPrint, 64, "Heap after starting fingerprint module: %d\r\n", xPortGetFreeHeapSize());
-	SerialConsoleWriteString(bufferPrint);
+	//if (xTaskCreate(fingerprint_task, "FINGERPRINT_TASK", 512, NULL, 5, NULL) != pdPASS) {
+		//SerialConsoleWriteString("ERR: Fingerprint task could not be initialized!\r\n");
+	//}
+	//snprintf(bufferPrint, 64, "Heap after starting fingerprint module: %d\r\n", xPortGetFreeHeapSize());
+	//SerialConsoleWriteString(bufferPrint);
 }
 
 /******************************************************************************
