@@ -36,7 +36,7 @@ extern "C" {
 #define WIFI_DOWNLOAD_INIT 2    ///< State for Wifi handler to Initialize Download Connection
 #define WIFI_DOWNLOAD_HANDLE 3  ///< State for Wifi handler to Handle Download Connection
 
-#define WIFI_TASK_SIZE 1000
+#define WIFI_TASK_SIZE 1024
 #define WIFI_PRIORITY (configMAX_PRIORITIES - 2)
 
 /** Wi-Fi AP Settings. */
@@ -195,6 +195,7 @@ bool cloud_delete_permission_granted(void);
 void reset_cloud_permissions(void);
 
 void MQTT_UnlockHandler(MessageData *md);
+void cloud_send_finger_ID(uint8_t finger_id);
 
 #ifdef __cplusplus
 }
