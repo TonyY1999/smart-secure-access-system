@@ -124,7 +124,7 @@ void vIMUTask(void *pvParameters)
 				SerialConsoleWriteString("!!! VIBRATION DETECTED !!! Triggering buzzer!\r\n");
 
 				port_pin_set_output_level(LED_0_PIN,LED_0_ACTIVE);
-				//buzzer_init();
+				buzzer_init();
 				buzzer_on();
 				vTaskDelay(pdMS_TO_TICKS(2000));
 				

@@ -145,7 +145,8 @@ static void StartTasks(void) {
 void vApplicationDaemonTaskStartupHook(void) {
 	// initialize the UART console
 	InitializeSerialConsole();
-	
+	buzzer_init();
+	//config_servo();
     SerialConsoleWriteString("\x0C\n\r-----Smart Secure Access System-----\r\n");
 	
     // initialize HW that needs FreeRTOS Initialization

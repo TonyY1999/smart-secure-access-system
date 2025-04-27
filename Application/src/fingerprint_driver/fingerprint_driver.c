@@ -335,13 +335,13 @@ void fingerprint_task(void *pvParameters){
 		{
 			
 			cloud_send_finger_ID(finger_id);
-			buzzer_init();
+			//buzzer_init();
 			
 			buzzer_on();
-			vTaskDelay(pdMS_TO_TICKS(2000));
+			//vTaskDelay(pdMS_TO_TICKS(2000));
 							config_servo();
 							pwm_set_servo_angle_unlock_door();
-							vTaskDelay(pdMS_TO_TICKS(1000));
+							vTaskDelay(pdMS_TO_TICKS(5000));
 							pwm_set_servo_angle_lock_door();
 									
 			//config_servo();
