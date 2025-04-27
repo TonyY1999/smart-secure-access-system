@@ -9,8 +9,26 @@
  * Includes
  ******************************************************************************/
 #include "fingerprint_driver.h"
-#include "SerialConsole.h"
+
+#include <errno.h>
+
+#include "FreeRTOS.h"
+#include "I2cDriver\I2cDriver.h"
+#include "asf.h"
+#include "driver/include/m2m_wifi.h"
+#include "main.h"
+#include "stdio_serial.h"
+#include "SerialConsole/SerialConsole.h"
+#include "MCHP_ATWx.h"
+
+#include "CliThread/CliThread.h"
+#include "WifiHandlerThread/WifiHandler.h"
 #include "servo_driver/servo_driver.h"
+#include "fingerprint_driver/fingerprint_driver.h"
+#include "imu_driver/adxl345_imu.h"
+#include "LCD/ST7735.h"
+#include "LCD/LCD_GFX.h"
+
 #include <asf.h>
 
 /******************************************************************************
@@ -55,7 +73,7 @@ void fingerprint_init()
 
 	while (usart_init(&fingerprint_usart_instance, SERCOM0, &config_usart) != STATUS_OK);
 	usart_enable(&fingerprint_usart_instance);
-		
+	
 	usart_register_callback(&fingerprint_usart_instance, fingerprint_read_callback, USART_CALLBACK_BUFFER_RECEIVED);
 	usart_enable_callback(&fingerprint_usart_instance, USART_CALLBACK_BUFFER_RECEIVED);	
 	
@@ -152,7 +170,7 @@ int8_t store_finger(uint8_t id) {
 	}
 }
 
-int8_t find_smallest_index() {
+int find_smallest_index() {
 	uint8_t cmd[] = READ_INDEX_CMD;
 	fingerprint_send_packet(cmd, sizeof(cmd));
 
@@ -179,22 +197,20 @@ int8_t find_smallest_index() {
 }
 
 // Enroll fingerprint
-int8_t fingerprint_enroll() {
+int8_t fingerprint_enroll(uint8_t id) {
     CHECK_SUCCESS(gen_img());
     CHECK_SUCCESS(gen_cf_to_b1());
     CHECK_SUCCESS(gen_img());
     CHECK_SUCCESS(gen_cf_to_b2());
     CHECK_SUCCESS(reg_model());
-    CHECK_SUCCESS(store_finger(find_smallest_index()));
+    CHECK_SUCCESS(store_finger(id));
 	
     return 0;
 }
 
 // Delete fingerprint
-int8_t fingerprint_delete() {
-	int res = fingerprint_search();
-	
-	uint8_t cmd[] = DELETE_CMD(res);
+int8_t fingerprint_delete(uint8_t id) {	
+	uint8_t cmd[] = DELETE_CMD(id);
 	fingerprint_send_packet(cmd, sizeof(cmd));
 	
 	uint8_t ack[12];
@@ -308,17 +324,19 @@ void fingerprint_read_callback(struct usart_module *const usart_module)
  * Task Function
  ******************************************************************************/
 void fingerprint_task(void *pvParameters){
-	//read_temp_num();
-	int8_t res = find_smallest_index();
-	//while (1)
-	//{
-		//if (fingerprint_search() != -1)
-		//{
-			//pwm_set_servo_angle_unlock_door();
-			//vTaskDelay(pdMS_TO_TICKS(5000));
-			//pwm_set_servo_angle_lock_door();
-		//}
-		//
-		//vTaskDelay(pdMS_TO_TICKS(100));s
-	//}
+	fingerprint_init();
+	
+	while (1)
+	{
+		int finger_id = fingerprint_search();
+		if (finger_id != -1)
+		{
+			cloud_send_finger_ID(finger_id);
+			pwm_set_servo_angle_unlock_door();
+			vTaskDelay(pdMS_TO_TICKS(5000));
+			pwm_set_servo_angle_lock_door();
+		}
+		
+		vTaskDelay(pdMS_TO_TICKS(100));
+	}
 }

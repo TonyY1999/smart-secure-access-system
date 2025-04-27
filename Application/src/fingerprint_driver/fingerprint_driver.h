@@ -85,16 +85,18 @@ int8_t store_finger(uint8_t id);
 /**
  * @brief Enroll a new fingerprint into the library.
  * @details Guides the user through fingerprint capture and storage steps.
+ * @param[in] Fingerprint ID that want to be added.
  * @return 0 on success, -1 on failure.
  */
-int8_t fingerprint_enroll();
+int8_t fingerprint_enroll(uint8_t id);
 
 /**
  * @brief Delete a stored fingerprint template.
  * @details Sends the DELETE command to the sensor.
+ * @param[in] Fingerprint ID that want to be added. 
  * @return 0 on success, -1 on failure.
  */
-int8_t fingerprint_delete();
+int8_t fingerprint_delete(uint8_t id);
 
 /**
  * @brief Empty the entire fingerprint library.
@@ -116,6 +118,9 @@ int fingerprint_search();
  * @return Number of templates on success, -1 on failure.
  */
 int read_temp_num();
+
+int find_smallest_index();
+
 
 /**
  * @brief FreeRTOS task to manage fingerprint sensor operations.
