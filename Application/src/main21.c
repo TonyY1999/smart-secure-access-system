@@ -117,18 +117,25 @@ static void StartTasks(void) {
 	SerialConsoleWriteString(bufferPrint);
 	
 	// initialize IMU task here
-	//if (xTaskCreate(vIMUTask, "IMU_TASK", 256, NULL, 2, NULL) != pdPASS) {
-		//SerialConsoleWriteString("ERR: IMU task could not be initialized!\r\n");
+	if (xTaskCreate(vIMUTask, "IMU_TASK", 512, NULL, 1, NULL) != pdPASS) {
+		SerialConsoleWriteString("ERR: IMU task could not be initialized!\r\n");
+	}
+	snprintf(bufferPrint, 64, "Heap after starting IMU: %d\r\n", xPortGetFreeHeapSize());
+	SerialConsoleWriteString(bufferPrint);
+	
+	// initialize servo motor task here
+	//if (xTaskCreate(servo_task, "SERVO_TASK", 256, NULL, 1, &servoTaskHandle) != pdPASS) {
+		//SerialConsoleWriteString("ERR: Servo task could not be initialized!\r\n");
 	//}
-	//snprintf(bufferPrint, 64, "Heap after starting IMU: %d\r\n", xPortGetFreeHeapSize());
+	//snprintf(bufferPrint, 64, "Heap after starting servo motor: %d\r\n", xPortGetFreeHeapSize());
 	//SerialConsoleWriteString(bufferPrint);
-		
-    // initialize CLI task here
-     //if (xTaskCreate(vCommandConsoleTask, "CLI_TASK", 256, NULL, 1, &cliTaskHandle) != pdPASS) {
- 	    //SerialConsoleWriteString("ERR: CLI task could not be initialized!\r\n");
-     //}
-     //snprintf(bufferPrint, 64, "Heap after starting CLI: %d\r\n", xPortGetFreeHeapSize());
-     //SerialConsoleWriteString(bufferPrint);
+	//
+	// initialize fingerprint module task here
+	//if (xTaskCreate(fingerprint_task, "FINGERPRINT_TASK", 512, NULL, 5, NULL) != pdPASS) {
+		//SerialConsoleWriteString("ERR: Fingerprint task could not be initialized!\r\n");
+	//}
+	//snprintf(bufferPrint, 64, "Heap after starting fingerprint module: %d\r\n", xPortGetFreeHeapSize());
+	//SerialConsoleWriteString(bufferPrint);
 }
 
 /******************************************************************************
