@@ -27,6 +27,7 @@
 #include "imu_driver/adxl345_imu.h"
 #include "LCD/ST7735.h"
 #include "LCD/LCD_GFX.h"
+#include "buzzer_driver/Buzzer.h"
 
 /******************************************************************************
  * Defines
@@ -66,7 +67,8 @@ static void StartTasks(void);  //!< Initial task used to initialize HW before ot
 int main(void) {	
     /* Initialize the board. */
     system_init();
-		
+	
+	
     // Initialize trace capabilities
     vTraceEnable(TRC_START);
 	
