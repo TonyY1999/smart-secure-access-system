@@ -42,7 +42,7 @@ void buzzer_init(void)
 void buzzer_on(void)
 {
 	SerialConsoleWriteString("Setting buzzer match[0] = 6000\r\n");
-	tcc_set_compare_value(&tcc0_instance, 0, 8500); // 50% ????
+	tcc_set_compare_value(&tcc0_instance, 0, 6000); // 50% ????
 }
 
 void buzzer_off(void)
