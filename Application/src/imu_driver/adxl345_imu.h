@@ -49,7 +49,7 @@ int adxl_read(uint8_t reg, uint8_t *buf, uint8_t len);
  *
  * @return 0 if successful, negative value if device ID mismatched or init failed.
  */
-int adxl_init(void);
+void adxl_init();
 
 /**
  * @brief Read raw X, Y, and Z acceleration data from the ADXL345.

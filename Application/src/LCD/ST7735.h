@@ -18,9 +18,9 @@
 #define CONF_MASTER_PINMUX_PAD2     PINMUX_UNUSED
 #define CONF_MASTER_PINMUX_PAD3     PINMUX_UNUSED
 #define CONF_MASTER_SS_PIN          PIN_PA02                   // CS
-#define LCD_DC                     PIN_PA03
-#define LCD_LITE                   PIN_PA11                     //PCBA PA06
-#define LCD_RST                   PIN_PA10
+#define LCD_DC						PIN_PA03
+#define LCD_LITE					PIN_PA11                     //PCBA PA06
+#define LCD_RST						PIN_PA10
 
 
 #define ST7735_NOP     0x00

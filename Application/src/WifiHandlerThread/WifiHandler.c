@@ -729,12 +729,15 @@ void SubscribeHandler(MessageData *msgData)
 volatile bool allow_add = false;
 volatile bool allow_delete = false;
 
+volatile int add_permission_status = 0;
+volatile int delete_permission_status = 0;
+
 void SubscribeHandlerFingerprintResponse(MessageData *msgData)
 {
 	char payload[128] = {0};
 	size_t len = msgData->message->payloadlen;
 
-	// ?????????????? '\0' ???
+	// ????????? '\0' ??
 	if (len >= sizeof(payload)) {
 		len = sizeof(payload) - 1;
 	}
@@ -745,46 +748,61 @@ void SubscribeHandlerFingerprintResponse(MessageData *msgData)
 	SerialConsoleWriteString(payload);
 	SerialConsoleWriteString("\r\n");
 
-	// ? ????????? result ????????
+	// ? ????? result ?????
 	if (!strstr(payload, "\"result\"")) {
 		SerialConsoleWriteString("Ignored non-response message.\r\n");
 		return;
 	}
 
 	// === ADD ===
-	if (strstr(payload, "\"action\":\"add\"") && strstr(payload, "\"result\":\"allow\"")) {
-		allow_add = true;
-		SerialConsoleWriteString("Cloud allowed ADD.\r\n");
-	}
-	if (strstr(payload, "\"action\":\"add\"") && strstr(payload, "\"result\":\"deny\"")) {
-		allow_add = false;
-		SerialConsoleWriteString("Cloud denied ADD.\r\n");
+	if (strstr(payload, "\"action\":\"add\"")) {
+		if (strstr(payload, "\"result\":\"allow\"")) {
+			add_permission_status = 1;
+			SerialConsoleWriteString("Cloud allowed ADD.\r\n");
+		}
+		else if (strstr(payload, "\"result\":\"deny\"")) {
+			add_permission_status = -1;
+			SerialConsoleWriteString("Cloud denied ADD.\r\n");
+		}
 	}
 
 	// === DELETE ===
-	if (strstr(payload, "\"action\":\"delete\"") && strstr(payload, "\"result\":\"allow\"")) {
-		allow_delete = true;
-		SerialConsoleWriteString("Cloud allowed DELETE.\r\n");
-	}
-	if (strstr(payload, "\"action\":\"delete\"") && strstr(payload, "\"result\":\"deny\"")) {
-		allow_delete = false;
-		SerialConsoleWriteString("Cloud denied DELETE.\r\n");
+	if (strstr(payload, "\"action\":\"delete\"")) {
+		if (strstr(payload, "\"result\":\"allow\"")) {
+			delete_permission_status = 1;
+			SerialConsoleWriteString("Cloud allowed DELETE.\r\n");
+		}
+		else if (strstr(payload, "\"result\":\"deny\"")) {
+			delete_permission_status = -1;
+			SerialConsoleWriteString("Cloud denied DELETE.\r\n");
+		}
 	}
 }
+
 bool cloud_add_permission_granted(void)
 {
-    return allow_add;
+	return (add_permission_status == 1);
+}
+
+bool cloud_add_permission_denied(void)
+{
+	return (add_permission_status == -1);
 }
 
 bool cloud_delete_permission_granted(void)
 {
-    return allow_delete;
+	return (delete_permission_status == 1);
+}
+
+bool cloud_delete_permission_denied(void)
+{
+	return (delete_permission_status == -1);
 }
 
 void reset_cloud_permissions(void)
 {
-    allow_add = false;
-    allow_delete = false;
+	add_permission_status = 0;
+	delete_permission_status = 0;
 }
 
 /**************************************************************************************************************/
@@ -1058,9 +1076,9 @@ static void MQTT_HandleTransactions(void)
     sw_timer_task(&swt_module_inst);
 
     // Check if data has to be sent!
-    MQTT_HandleGameMessages();
-    MQTT_HandleImuMessages();
-	MQTT_HandleButtonMessages();
+    //MQTT_HandleGameMessages();
+    //MQTT_HandleImuMessages();
+	//MQTT_HandleButtonMessages();
 
     // Handle MQTT messages
     if (mqtt_inst.isConnected) mqtt_yield(&mqtt_inst, 100);
@@ -1117,19 +1135,86 @@ static void MQTT_HandleButtonMessages(void)
 /*****************************************************************************************************/
 // add/delete fingerprint
 
-void cloud_request_add(uint8_t finger_id) {
+int cloud_request_add(uint8_t finger_id) {
 	char payload[64];
 	snprintf(payload, sizeof(payload), "{\"request\":\"add\",\"finger_id\":%d}", finger_id);
-	mqtt_publish(&mqtt_inst, "a10g/library/fingerprint", payload, strlen(payload), 2, 0);
-	SerialConsoleWriteString("Sent ADD request to cloud.\r\n");
+
+	int retries = 3;
+	int result = FAILURE;
+
+	while (retries--) {
+		SerialConsoleWriteString("[Debug] Trying to publish ADD request...\r\n");
+
+		
+		TickType_t start_tick = xTaskGetTickCount();
+		TickType_t timeout_tick = pdMS_TO_TICKS(2000);
+
+		result = mqtt_publish(&mqtt_inst, "a10g/library/fingerprint", payload, strlen(payload), 2, 0);
+
+		
+		if ((xTaskGetTickCount() - start_tick) > timeout_tick) {
+			SerialConsoleWriteString("[Error] Publish ADD request timeout!\r\n");
+			result = FAILURE;
+		}
+
+		if (result == SUCCESS) {
+			SerialConsoleWriteString("Sent ADD request to cloud.\r\n");
+			break;
+		} 
+		else {
+			SerialConsoleWriteString("[Error] Publish failed, retrying...\r\n");
+			vTaskDelay(pdMS_TO_TICKS(500));
+		}
+		
+		//system_reset();
+	}
+
+	if (result != SUCCESS) {
+		SerialConsoleWriteString("[Error] Failed to send ADD request after retries.\r\n");
+	}
+
+	return result;
 }
 
-void cloud_request_delete(uint8_t finger_id) {
+int cloud_request_delete(uint8_t finger_id) {
 	char payload[64];
 	snprintf(payload, sizeof(payload), "{\"request\":\"delete\",\"finger_id\":%d}", finger_id);
-	mqtt_publish(&mqtt_inst, "a10g/library/fingerprint", payload, strlen(payload), 2, 0);
-	SerialConsoleWriteString("Sent DELETE request to cloud.\r\n");
+
+	int retries = 3;
+	int result = FAILURE;
+
+	while (retries--) {
+		SerialConsoleWriteString("[Debug] Trying to publish DELETE request...\r\n");
+
+		
+		TickType_t start_tick = xTaskGetTickCount();
+		TickType_t timeout_tick = pdMS_TO_TICKS(2000);
+
+		
+		result = mqtt_publish(&mqtt_inst, "a10g/library/fingerprint", payload, strlen(payload), 2, 0);
+
+		
+		if ((xTaskGetTickCount() - start_tick) > timeout_tick) {
+			SerialConsoleWriteString("[Error] Publish DELETE request timeout!\r\n");
+			result = FAILURE;
+		}
+
+		if (result == SUCCESS) {
+			SerialConsoleWriteString("Sent DELETE request to cloud.\r\n");
+			break;
+			} else {
+			SerialConsoleWriteString("[Error] Publish failed, retrying...\r\n");
+			vTaskDelay(pdMS_TO_TICKS(500));
+		}
+	}
+
+	if (result != SUCCESS) {
+		SerialConsoleWriteString("[Error] Failed to send DELETE request after retries.\r\n");
+	}
+
+	return result;
 }
+
 
 // send ID to cloud when unlock the door
 void cloud_send_finger_ID(uint8_t finger_id) {
@@ -1153,6 +1238,7 @@ void vWifiTask(void *pvParameters)
     int8_t ret;
     vTaskDelay(100);
     init_state();
+	
     // Create buffers to send data
     xQueueWifiState = xQueueCreate(5, sizeof(uint32_t));
     xQueueImuBuffer = xQueueCreate(5, sizeof(struct ImuDataPacket));
@@ -1164,6 +1250,7 @@ void vWifiTask(void *pvParameters)
     }
 
     SerialConsoleWriteString("ESE516 - Wifi Init Code\r\n");
+	
     /* Initialize the Timer. */
     configure_timer();
 
@@ -1174,7 +1261,7 @@ void vWifiTask(void *pvParameters)
     configure_mqtt();
 
     /* Initialize SD/MMC storage. */
-    //init_storage();
+    init_storage();
 
     /*Initialize BUTTON 0 as an external interrupt*/
     configure_extint_channel();
@@ -1188,34 +1275,7 @@ void vWifiTask(void *pvParameters)
     /* Initialize Wi-Fi driver with data and status callbacks. */
     param.pfAppWifiCb = wifi_cb;
     ret = m2m_wifi_init(&param);
-	
-	// debug
-//tstrM2mRev fw;
-//sint8 res = nm_get_firmware_full_info(&fw);
-//
-//if (res == M2M_SUCCESS || res == M2M_ERR_FW_VER_MISMATCH) {
-	//char msg[256];
-	//snprintf(msg, sizeof(msg),
-	//"FW Version   : %u.%u.%u\r\n"
-	//"DRV Version  : %u.%u.%u\r\n"
-	//"SVN          : %u\r\n"
-	//"Build Date   : %s\r\n"
-	//"Build Time   : %s\r\n"
-	//"Chip ID      : 0x%08X\r\n",
-	//fw.u8FirmwareMajor, fw.u8FirmwareMinor, fw.u8FirmwarePatch,
-	//fw.u8DriverMajor, fw.u8DriverMinor, fw.u8DriverPatch,
-	//fw.u16FirmwareSvnNum,
-	//fw.BuildDate,
-	//fw.BuildTime,
-	//fw.u32Chipid);
-//
-	//SerialConsoleWriteString(msg);
-	//} else {
-	//SerialConsoleWriteString("Failed to read firmware version!\r\n");
-//}
-	
-	
-	
+		
     if (M2M_SUCCESS != ret) {
         LogMessage(LOG_DEBUG_LVL, "main: m2m_wifi_init call error! (res %d)\r\n", ret);
         while (1) {
@@ -1240,11 +1300,11 @@ void vWifiTask(void *pvParameters)
     vTaskDelay(1000);
 
     wifiStateMachine = WIFI_MQTT_HANDLE;
+	
     while (1) {
         switch (wifiStateMachine) {
             case (WIFI_MQTT_INIT): {
                 MQTT_InitRoutine();
-
                 break;
             }
 
@@ -1267,6 +1327,7 @@ void vWifiTask(void *pvParameters)
                 wifiStateMachine = WIFI_MQTT_INIT;
                 break;
         }
+		
         // Check if a new state was called
         uint8_t DataToReceive = 0;
         if (pdPASS == xQueueReceive(xQueueWifiState, &DataToReceive, 0)) {
@@ -1286,9 +1347,8 @@ void vWifiTask(void *pvParameters)
 			 system_reset();
 		 }
 
-        vTaskDelay(100);
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
-    return;
 }
 
 void WifiHandlerSetState(uint8_t state)

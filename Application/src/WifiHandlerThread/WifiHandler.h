@@ -186,12 +186,14 @@ void SubscribeHandlerBoolLed(MessageData *msgData);
 
 bool is_state_set(download_state mask);
 
-void cloud_request_add(uint8_t finger_id);
-void cloud_request_delete(uint8_t finger_id);
+int cloud_request_add(uint8_t finger_id);
+int cloud_request_delete(uint8_t finger_id);
 
 void SubscribeHandlerFingerprintResponse(MessageData *msgData);
 bool cloud_add_permission_granted(void);
 bool cloud_delete_permission_granted(void);
+bool cloud_add_permission_denied(void);
+bool cloud_delete_permission_denied(void);
 void reset_cloud_permissions(void);
 
 void MQTT_UnlockHandler(MessageData *md);

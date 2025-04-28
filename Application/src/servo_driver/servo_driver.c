@@ -19,38 +19,13 @@ extern struct tcc_module tcc0_instance;
 /******************************************************************************
  * Global Functions
  ******************************************************************************/
-//void config_servo()
-//{
-	//struct tcc_config config_tcc;
-	//tcc_get_config_defaults(&config_tcc, TCC0);
-//
-	//// set up prescaler?DIV64?48MHz / 64 = 750kHz?
-	//config_tcc.counter.clock_prescaler = TCC_CLOCK_PRESCALER_DIV64;
-	//
-	//// TOP value = 20ms * (750 ticks/ ms) = 15000
-	//config_tcc.counter.period = 15000;
-	//
-	//// set the compare mode to single-slope PWM
-	//config_tcc.compare.wave_generation = TCC_WAVE_GENERATION_SINGLE_SLOPE_PWM;
-	//
-	//// set compare value: 
-	//config_tcc.compare.match[1] = 750;
-//
-	//config_tcc.pins.enable_wave_out_pin[1] = true;
-	//config_tcc.pins.wave_out_pin[1] = PIN_PA05E_TCC0_WO1;
-	//config_tcc.pins.wave_out_pin_mux[1] = MUX_PA05E_TCC0_WO1;
-//
-	//tcc_init(&tcc_instance, TCC0, &config_tcc);
-	//tcc_enable(&tcc_instance);
-//}
-
 void config_servo()
 {
 	struct tcc_config config_tcc;
 	tcc_reset(&tcc0_instance);
 	tcc_get_config_defaults(&config_tcc, TCC0);
 
-	// set up prescaler DIV64?48MHz / 64 = 750kHz
+	// set up prescaler DIV64, 48MHz / 64 = 750kHz
 	config_tcc.counter.clock_prescaler = TCC_CLOCK_PRESCALER_DIV64;
 	
 	// TOP value = 20ms * (750 ticks/ ms) = 15000
@@ -59,8 +34,8 @@ void config_servo()
 	// set the compare mode to single-slope PWM
 	config_tcc.compare.wave_generation = TCC_WAVE_GENERATION_SINGLE_SLOPE_PWM;
 	
-	// set compare value:
-	config_tcc.compare.match[1] = 750;
+	// set compare value initially(lock the door)
+	config_tcc.compare.match[1] = 1400;
 
 	config_tcc.pins.enable_wave_out_pin[1] = true;
 	config_tcc.pins.wave_out_pin[1] = PIN_PA05E_TCC0_WO1;
@@ -68,28 +43,6 @@ void config_servo()
 
 	tcc_init(&tcc0_instance, TCC0, &config_tcc);
 	tcc_enable(&tcc0_instance);
-	
-	    //struct tcc_config config_tcc;
-	    //tcc_get_config_defaults(&config_tcc, TCC0);
-//
-	    //config_tcc.counter.clock_prescaler = TCC_CLOCK_PRESCALER_DIV64;
-	    //config_tcc.counter.period = 15000;
-	    //config_tcc.compare.wave_generation = TCC_WAVE_GENERATION_SINGLE_SLOPE_PWM;
-//
-	    //// ?? channel 0 (buzzer)
-	    //config_tcc.compare.match[0] = 0;
-	    //config_tcc.pins.enable_wave_out_pin[0] = true;
-	    //config_tcc.pins.wave_out_pin[0] = PIN_PA04E_TCC0_WO0;
-	    //config_tcc.pins.wave_out_pin_mux[0] = MUX_PA04E_TCC0_WO0;
-//
-	    //// ?? channel 1 (servo)
-	    //config_tcc.compare.match[1] = 750;
-	    //config_tcc.pins.enable_wave_out_pin[1] = true;
-	    //config_tcc.pins.wave_out_pin[1] = PIN_PA05E_TCC0_WO1;
-	    //config_tcc.pins.wave_out_pin_mux[1] = MUX_PA05E_TCC0_WO1;
-//
-	    //tcc_init(&tcc0_instance, TCC0, &config_tcc);
-	    //tcc_enable(&tcc0_instance);
 }
 
 void pwm_set_servo_angle_unlock_door()

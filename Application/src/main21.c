@@ -43,7 +43,7 @@ static TaskHandle_t daemonTaskHandle = NULL;    //!< Daemon task handle
 static TaskHandle_t wifiTaskHandle = NULL;      //!< WIFI task handle
 static TaskHandle_t uiTaskHandle = NULL;        //!< UI task handle
 static TaskHandle_t controlTaskHandle = NULL;   //!< Control task handle
-TaskHandle_t servoTaskHandle = NULL;		//!< Serco task handle
+TaskHandle_t fingerTaskHandle = NULL;		//!< Serco task handle
 
 char bufferPrint[64];   ///< Buffer for daemon task
 
@@ -58,8 +58,6 @@ void vApplicationDaemonTaskStartupHook(void);
 
 static void StartTasks(void);  //!< Initial task used to initialize HW before other tasks are initialized
 
-void init_task(void *param);
-
 /**
  * @brief Main application function.
  * Application entry point.
@@ -68,7 +66,6 @@ void init_task(void *param);
 int main(void) {	
     /* Initialize the board. */
     system_init();
-	
 	
     // Initialize trace capabilities
     vTraceEnable(TRC_START);
@@ -90,47 +87,33 @@ static void StartTasks(void) {
     snprintf(bufferPrint, 64, "Heap before starting tasks: %d\r\n", xPortGetFreeHeapSize());
     SerialConsoleWriteString(bufferPrint);
 	
-	// initialize WIFI task here
-	if (xTaskCreate(vWifiTask, "WIFI_TASK", 550, NULL, 5, &wifiTaskHandle) != pdPASS) {
+	// create WIFI task here
+	if (xTaskCreate(vWifiTask, "WIFI_TASK", 700, NULL, 3, &wifiTaskHandle) != pdPASS) {
 		SerialConsoleWriteString("ERR: WIFI task could not be initialized!\r\n");
 	}
-	snprintf(bufferPrint, 64, "Heap after starting WIFI: %d\r\n", xPortGetFreeHeapSize());
+	snprintf(bufferPrint, 64, "Heap after starting wiif task: %d\r\n", xPortGetFreeHeapSize());
 	SerialConsoleWriteString(bufferPrint);
 	
-	// initialize LCD module task here
- 	//if (xTaskCreate(vLCDTask, "LCD_TASK", 256, NULL, 5, NULL) != pdPASS) {
-	 	//SerialConsoleWriteString("ERR: LCD task could not be initialized!\r\n");
- 	//}
- 	//snprintf(bufferPrint, 64, "Heap after starting LCD module: %d\r\n", xPortGetFreeHeapSize());
- 	//SerialConsoleWriteString(bufferPrint);
+	//create LCD module task here
+ 	if (xTaskCreate(vLCDTask, "LCD_TASK", 600, NULL, 5, NULL) != pdPASS) {
+	 	SerialConsoleWriteString("ERR: LCD task could not be initialized!\r\n");
+ 	}
+ 	snprintf(bufferPrint, 64, "Heap after starting LCD module: %d\r\n", xPortGetFreeHeapSize());
+ 	SerialConsoleWriteString(bufferPrint);
 
-	// initialize fingerprint module task here
-	if (xTaskCreate(fingerprint_task, "FINGERPRINT_TASK", 512, NULL, 3, NULL) != pdPASS) {
-		SerialConsoleWriteString("ERR: Fingerprint task could not be initialized!\r\n");
-	}
-	snprintf(bufferPrint, 64, "Heap after starting fingerprint module: %d\r\n", xPortGetFreeHeapSize());
-	SerialConsoleWriteString(bufferPrint);
+ 	// create fingerprint task here
+ 	//if (xTaskCreate(fingerprint_task, "FINGERPRINT_TASK", 500, NULL, 4, &fingerTaskHandle) != pdPASS) {
+	 	//SerialConsoleWriteString("ERR: Fingerprint task could not be initialized!\r\n");
+ 	//}
+ 	//snprintf(bufferPrint, 64, "Heap after starting fingerprint module: %d\r\n", xPortGetFreeHeapSize());
+ 	//SerialConsoleWriteString(bufferPrint);
 	
-	// initialize IMU task here
-	if (xTaskCreate(vIMUTask, "IMU_TASK", 200, NULL, 5, NULL) != pdPASS) {
+	// create IMU task here
+	if (xTaskCreate(vIMUTask, "IMU_TASK", 550, NULL, 3, NULL) != pdPASS) {
 		SerialConsoleWriteString("ERR: IMU task could not be initialized!\r\n");
 	}
 	snprintf(bufferPrint, 64, "Heap after starting IMU: %d\r\n", xPortGetFreeHeapSize());
 	SerialConsoleWriteString(bufferPrint);
-	
-	// initialize servo motor task here
-	//if (xTaskCreate(servo_task, "SERVO_TASK", 256, NULL, 1, &servoTaskHandle) != pdPASS) {
-		//SerialConsoleWriteString("ERR: Servo task could not be initialized!\r\n");
-	//}
-	//snprintf(bufferPrint, 64, "Heap after starting servo motor: %d\r\n", xPortGetFreeHeapSize());
-	//SerialConsoleWriteString(bufferPrint);
-	//
-	// initialize fingerprint module task here
-	//if (xTaskCreate(fingerprint_task, "FINGERPRINT_TASK", 512, NULL, 5, NULL) != pdPASS) {
-		//SerialConsoleWriteString("ERR: Fingerprint task could not be initialized!\r\n");
-	//}
-	//snprintf(bufferPrint, 64, "Heap after starting fingerprint module: %d\r\n", xPortGetFreeHeapSize());
-	//SerialConsoleWriteString(bufferPrint);
 }
 
 /******************************************************************************
@@ -145,8 +128,11 @@ static void StartTasks(void) {
 void vApplicationDaemonTaskStartupHook(void) {
 	// initialize the UART console
 	InitializeSerialConsole();
-	buzzer_init();
+	
+	//fingerprint_init();
 	//config_servo();
+	//adxl_init();
+	
     SerialConsoleWriteString("\x0C\n\r-----Smart Secure Access System-----\r\n");
 	
     // initialize HW that needs FreeRTOS Initialization

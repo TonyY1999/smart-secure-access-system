@@ -74,6 +74,7 @@ exit:
   * @return      This function is a callback, and it is registered as such when we send an I2C transmission on this I2C bus.
   * @note
   */
+#include "SerialConsole.h"
 void I2cSensorsTxComplete(struct i2c_master_module *const module)
 {
     I2cSensorBusState.i2cState = I2C_BUS_READY;
@@ -232,7 +233,7 @@ int32_t I2cReadData(I2C_Data *data)
     sensorPacketWrite.data_length = data->lenIn;
 
     // Read
-
+	vTaskDelay(pdMS_TO_TICKS(200));
     hwError = i2c_master_read_packet_job(&i2cSensorBusInstance, &sensorPacketWrite);
 
     if (STATUS_OK != hwError) {
@@ -342,12 +343,15 @@ int32_t I2cWriteDataWait(I2C_Data *data, const TickType_t xMaxBlockTime)
     if (ERROR_NONE != error) goto exit;
 
     //---2. Initiate sending data
-
+	vTaskSuspendAll();
+	
     error = I2cWriteData(data);
     if (ERROR_NONE != error) {
         goto exitError0;
     }
-
+	
+	xTaskResumeAll();
+		
     //---2. Wait for binary semaphore to tell us that we are done!
     if (xSemaphoreTake(semHandle, xMaxBlockTime) == pdTRUE) {
         /* The transmission ended as expected. We now delay until the I2C sensor is finished */
@@ -365,7 +369,7 @@ int32_t I2cWriteDataWait(I2C_Data *data, const TickType_t xMaxBlockTime)
         error = ERR_TIMEOUT;
         goto exitError0;
     }
-
+	
     //---8. Release Mutex
     error |= I2cFreeMutex();
 // xSemaphoreGive(semHandle);
