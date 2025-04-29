@@ -220,9 +220,28 @@ void handle_view_fingerprint(void) {
 	LCD_drawMenu(0); 
 }
 
+extern volatile bool mqtt_connected;
+extern TaskHandle_t wifiTaskHandle;
+extern TaskHandle_t IMUTaskHandle;
 void handle_add_fingerprint(void) {
+	
 	SerialConsoleWriteString(">>> Requesting to Add Fingerprint from Cloud\r\n");
+	vTaskSuspend(IMUTaskHandle);
+	taskYIELD();
+	vTaskResume(wifiTaskHandle);
+	taskYIELD();
+	
+	uint16_t timeout = 100; 
 
+	while (!mqtt_connected ) {
+		SerialConsoleWriteString("waiting mqtt\r\n");
+		vTaskDelay(pdMS_TO_TICKS(100));
+	}
+
+	//if (!mqtt_connected) {
+		//SerialConsoleWriteString("[Error] MQTT Connect Timeout!\r\n");
+		//return; 
+	//}
 	uint8_t finger_id = find_smallest_index();
 	//uint8_t finger_id = 1;
 	reset_cloud_permissions();
@@ -278,11 +297,6 @@ void handle_add_fingerprint(void) {
 		vTaskDelay(pdMS_TO_TICKS(5000));
 	}
 
-	
-	//LCD_setScreen(rgb565(0, 0, 0));
-	//LCD_drawMenu(0);
-	//
-	
 	system_reset();
 }
 
@@ -293,8 +307,19 @@ void handle_delete_fingerprint(void) {
 	
 	//int finger_id = 1;
 	//fingerprint_init();
+	vTaskSuspend(IMUTaskHandle);
+	taskYIELD();
+	vTaskResume(wifiTaskHandle);
+	taskYIELD();
 	vTaskSuspend(fingerTaskHandle);
+	taskYIELD();
 	
+	while (!mqtt_connected ) {
+		SerialConsoleWriteString("waiting mqtt\r\n");
+		vTaskDelay(pdMS_TO_TICKS(100));
+	}
+	
+
 	int finger_id;
 	while(1) {
 		finger_id = fingerprint_search();
@@ -385,6 +410,8 @@ void LCD_handleSelection(int selected) {
 	}
 }
 
+
+
 void vLCDTask(void *pvParameters){
 	// init LCD module + encoder
 	lcd_init();
@@ -397,6 +424,9 @@ void vLCDTask(void *pvParameters){
 	int selected = 0;
 	
 	while (1) {
+		
+		
+		
 		LCD_handleRotation(encoder_get_rotation(), &selected);
 
 		if (encoder_button_confirmed()) {

@@ -22,6 +22,8 @@
 uint8_t msgOutImu[64]; ///<USE ME AS A BUFFER FOR platform_write and platform_read
 I2C_Data imuData; ///<as a structure to communicate with the IMU on platform_write and platform_read
 
+extern TaskHandle_t wifiTaskHandle;
+
 /******************************************************************************
  * Global Functions
  ******************************************************************************/
@@ -63,32 +65,57 @@ int adxl_read(uint8_t reg, uint8_t *buf, uint8_t len)
 /**
  * @brief Initialize ADXL345 (check ID and enable measurement mode)
  */
-void adxl_init(void)
+//void adxl_init(void)
+//{
+    //uint8_t id = 0;
+	////int res = adxl_read(ADXL345_REG_DEVID, &id, 1);
+    ////if (adxl_read(ADXL345_REG_DEVID, &id, 1) != 0 || id != 0xE5) {
+        ////SerialConsoleWriteString("[ADXL345] Device not found or ID mismatch\r\n");
+        ////return -1;
+    ////}
+	////
+	//while(adxl_read(ADXL345_REG_DEVID, &id, 1) != 0 || id != 0xE5) {
+		//SerialConsoleWriteString("111");
+		//vTaskDelay(pdMS_TO_TICKS(100));
+	//}
+	//
+    //// Enable measurement mode
+    ////if (adxl_write(ADXL345_REG_POWER_CTL, 0x08) != 0) {
+        ////SerialConsoleWriteString("[ADXL345] Failed to set POWER_CTL\r\n");
+        ////return -2;
+    ////}
+	//
+	//while(adxl_write(ADXL345_REG_POWER_CTL, 0x08) != 0) {
+		//vTaskDelay(pdMS_TO_TICKS(100));
+	//}
+	//
+    //SerialConsoleWriteString("[ADXL345] Initialization complete\r\n");
+//}
+
+/**
+ * @brief Initialize ADXL345 (check ID and enable measurement mode)
+ */
+int adxl_init(void)
 {
+	//vTaskSuspend(wifiTaskHandle);
     uint8_t id = 0;
 	//int res = adxl_read(ADXL345_REG_DEVID, &id, 1);
-    //if (adxl_read(ADXL345_REG_DEVID, &id, 1) != 0 || id != 0xE5) {
-        //SerialConsoleWriteString("[ADXL345] Device not found or ID mismatch\r\n");
-        //return -1;
-    //}
-	//
-	while(adxl_read(ADXL345_REG_DEVID, &id, 1) != 0 || id != 0xE5) {
-		SerialConsoleWriteString("111");
-		vTaskDelay(pdMS_TO_TICKS(100));
-	}
-	
+    if (adxl_read(ADXL345_REG_DEVID, &id, 1) != 0 || id != 0xE5) {
+        SerialConsoleWriteString("[ADXL345] Device not found or ID mismatch\r\n");
+        return -1;
+    }
+
     // Enable measurement mode
-    //if (adxl_write(ADXL345_REG_POWER_CTL, 0x08) != 0) {
-        //SerialConsoleWriteString("[ADXL345] Failed to set POWER_CTL\r\n");
-        //return -2;
-    //}
-	
-	while(adxl_write(ADXL345_REG_POWER_CTL, 0x08) != 0) {
-		vTaskDelay(pdMS_TO_TICKS(100));
-	}
-	
+    if (adxl_write(ADXL345_REG_POWER_CTL, 0x08) != 0) {
+        SerialConsoleWriteString("[ADXL345] Failed to set POWER_CTL\r\n");
+        return -2;
+    }
+
     SerialConsoleWriteString("[ADXL345] Initialization complete\r\n");
+	//vTaskResume(wifiTaskHandle);
+    return 0;
 }
+
 
 /**
  * @brief Read X, Y, Z acceleration (raw values)
@@ -105,21 +132,32 @@ int adxl_read_xyz(int16_t *x, int16_t *y, int16_t *z)
     *x = (int16_t)(data[1] << 8 | data[0]);
     *y = (int16_t)(data[3] << 8 | data[2]);
     *z = (int16_t)(data[5] << 8 | data[4]);
+	
     return 0;
 }
 
-#define VIBRATION_THRESHOLD 500
- 
+#define VIBRATION_THRESHOLD 300
+ extern TaskHandle_t fingerTaskHandle;
 void vIMUTask(void *pvParameters)
 {
 	// init IMU + buzzer
-	adxl_init();
+	//adxl_init();
 	//buzzer_init();
+	vTaskSuspend(wifiTaskHandle);
+	if (adxl_init() != 0) {
+		SerialConsoleWriteString("IMU initialization failed!\r\n");
+		vTaskDelete(NULL);
+	}
+	
+	SerialConsoleWriteString("IMU initialized successfully.\r\n");
 	
 	int16_t x, y, z;
 	int16_t prev_x = 0, prev_y = 0, prev_z = 0;
 	
 	while (1) {
+		
+		vTaskSuspend(wifiTaskHandle);
+		
 		if (adxl_read_xyz(&x, &y, &z) == 0)
 		{
 			char msg[64];
@@ -131,8 +169,10 @@ void vIMUTask(void *pvParameters)
 
 				port_pin_set_output_level(LED_0_PIN,LED_0_ACTIVE);
 				buzzer_init();
-				//buzzer_on();
-				vTaskDelay(pdMS_TO_TICKS(2000));	
+				buzzer_on();
+				vTaskDelay(pdMS_TO_TICKS(5000));	
+				buzzer_off();
+				vTaskResume(fingerTaskHandle);
 			}
 
 			prev_x = x;
@@ -144,7 +184,7 @@ void vIMUTask(void *pvParameters)
 		else {
 			SerialConsoleWriteString("Error reading ADXL345 data!\r\n");
 		}
-		
+		//vTaskResume(wifiTaskHandle);
 		vTaskDelay(pdMS_TO_TICKS(6000));
 	}
 }

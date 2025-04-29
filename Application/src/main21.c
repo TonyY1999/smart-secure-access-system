@@ -40,10 +40,12 @@
  ******************************************************************************/
 static TaskHandle_t cliTaskHandle = NULL;       //!< CLI task handle
 static TaskHandle_t daemonTaskHandle = NULL;    //!< Daemon task handle
-static TaskHandle_t wifiTaskHandle = NULL;      //!< WIFI task handle
+TaskHandle_t wifiTaskHandle = NULL;      //!< WIFI task handle
 static TaskHandle_t uiTaskHandle = NULL;        //!< UI task handle
 static TaskHandle_t controlTaskHandle = NULL;   //!< Control task handle
 TaskHandle_t fingerTaskHandle = NULL;		//!< Serco task handle
+
+TaskHandle_t IMUTaskHandle = NULL;
 
 char bufferPrint[64];   ///< Buffer for daemon task
 
@@ -94,26 +96,28 @@ static void StartTasks(void) {
 	snprintf(bufferPrint, 64, "Heap after starting wiif task: %d\r\n", xPortGetFreeHeapSize());
 	SerialConsoleWriteString(bufferPrint);
 	
-	//create LCD module task here
- 	if (xTaskCreate(vLCDTask, "LCD_TASK", 600, NULL, 5, NULL) != pdPASS) {
+	if (xTaskCreate(vIMUTask, "IMU_TASK", 200, NULL, 4, &IMUTaskHandle) != pdPASS) {
+		SerialConsoleWriteString("ERR: IMU task could not be initialized!\r\n");
+	}
+	snprintf(bufferPrint, 64, "Heap after starting IMU: %d\r\n", xPortGetFreeHeapSize());
+	SerialConsoleWriteString(bufferPrint);
+	//
+	////create LCD module task here
+ 	if (xTaskCreate(vLCDTask, "LCD_TASK", 700, NULL, 5, NULL) != pdPASS) {
 	 	SerialConsoleWriteString("ERR: LCD task could not be initialized!\r\n");
  	}
  	snprintf(bufferPrint, 64, "Heap after starting LCD module: %d\r\n", xPortGetFreeHeapSize());
  	SerialConsoleWriteString(bufferPrint);
 
  	// create fingerprint task here
- 	//if (xTaskCreate(fingerprint_task, "FINGERPRINT_TASK", 500, NULL, 4, &fingerTaskHandle) != pdPASS) {
-	 	//SerialConsoleWriteString("ERR: Fingerprint task could not be initialized!\r\n");
- 	//}
- 	//snprintf(bufferPrint, 64, "Heap after starting fingerprint module: %d\r\n", xPortGetFreeHeapSize());
- 	//SerialConsoleWriteString(bufferPrint);
+ 	if (xTaskCreate(fingerprint_task, "FINGERPRINT_TASK", 500, NULL, 4, &fingerTaskHandle) != pdPASS) {
+	 	SerialConsoleWriteString("ERR: Fingerprint task could not be initialized!\r\n");
+ 	}
+ 	snprintf(bufferPrint, 64, "Heap after starting fingerprint module: %d\r\n", xPortGetFreeHeapSize());
+ 	SerialConsoleWriteString(bufferPrint);
 	
 	// create IMU task here
-	if (xTaskCreate(vIMUTask, "IMU_TASK", 550, NULL, 3, NULL) != pdPASS) {
-		SerialConsoleWriteString("ERR: IMU task could not be initialized!\r\n");
-	}
-	snprintf(bufferPrint, 64, "Heap after starting IMU: %d\r\n", xPortGetFreeHeapSize());
-	SerialConsoleWriteString(bufferPrint);
+	
 }
 
 /******************************************************************************

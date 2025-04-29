@@ -346,6 +346,9 @@ void fingerprint_read_callback(struct usart_module *const usart_module)
 /******************************************************************************
  * Task Function
  ******************************************************************************/
+extern volatile bool mqtt_connected;
+extern TaskHandle_t wifiTaskHandle;
+extern TaskHandle_t IMUTaskHandle;
 void fingerprint_task(void *pvParameters){
 	// init fingerprint module
 	fingerprint_init();
@@ -356,13 +359,29 @@ void fingerprint_task(void *pvParameters){
 		int finger_id = fingerprint_search();
 		if (finger_id != -1)
 		{
+			vTaskSuspend(IMUTaskHandle);
+			taskYIELD();
+			vTaskResume(wifiTaskHandle);
+			taskYIELD();
+			
+			uint16_t timeout = 100;
+
+			while (!mqtt_connected ) {
+				SerialConsoleWriteString("waiting mqtt\r\n");
+				vTaskDelay(pdMS_TO_TICKS(100));
+			}
+			
 			cloud_send_finger_ID(finger_id);
 			
 			// unlock the door
 			config_servo();
 			pwm_set_servo_angle_unlock_door();
 			vTaskDelay(pdMS_TO_TICKS(30000));
-			pwm_set_servo_angle_lock_door();
+			//pwm_set_servo_angle_lock_door();
+			
+			system_reset();
+			
+			
 		}
 		vTaskDelay(pdMS_TO_TICKS(6000));
 	}

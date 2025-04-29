@@ -855,6 +855,7 @@ void MQTT_UnlockHandler(MessageData *md)
  *  - [MQTT_CALLBACK_RECV_PUBLISH](@ref MQTT_CALLBACK_RECV_PUBLISH)
  * \param[in] data A structure contains notification informations. @ref mqtt_data
  */
+volatile bool mqtt_connected = false;
 static void mqtt_callback(struct mqtt_module *module_inst, int type, union mqtt_data *data)
 {
     switch (type) {
@@ -882,6 +883,7 @@ static void mqtt_callback(struct mqtt_module *module_inst, int type, union mqtt_
                 //mqtt_subscribe(module_inst, GAME_TOPIC_IN, 2, SubscribeHandlerGameTopic);
                 //mqtt_subscribe(module_inst, LED_TOPIC, 2, SubscribeHandlerLedTopic);
                 //mqtt_subscribe(module_inst, IMU_TOPIC, 2, SubscribeHandlerImuTopic);
+				
 				mqtt_subscribe(module_inst, "a10g/debug/led", 2, SubscribeHandlerBoolLed);
 				
 				mqtt_subscribe(module_inst, "a10g/fingerprint/cmd", 2, SubscribeHandlerFingerprintResponse);
@@ -893,6 +895,7 @@ static void mqtt_callback(struct mqtt_module *module_inst, int type, union mqtt_
                 /* Enable USART receiving callback. */
 
                 LogMessage(LOG_DEBUG_LVL, "MQTT Connected\r\n");
+				 mqtt_connected = true;
             } else {
                 /* Cannot connect for some reason. */
                 LogMessage(LOG_DEBUG_LVL, "MQTT broker decline your access! error code %d\r\n", data->connected.result);
