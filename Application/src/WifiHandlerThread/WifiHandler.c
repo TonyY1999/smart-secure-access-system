@@ -9,8 +9,8 @@
 /******************************************************************************
  * Includes
  ******************************************************************************/
-
 #include "WifiHandlerThread/WifiHandler.h"
+#include "I2cDriver/I2cDriver.h"
 
 #include <errno.h>
 
@@ -806,7 +806,7 @@ void reset_cloud_permissions(void)
 }
 
 /**************************************************************************************************************/
-		  
+//remote open the door
 void MQTT_UnlockHandler(MessageData *md)
 {
 	SerialConsoleWriteString("Enter MQTT_UnlockHandler\r\n");
@@ -828,7 +828,7 @@ void MQTT_UnlockHandler(MessageData *md)
 		//servo motor
 		
 		pwm_set_servo_angle_unlock_door();
-		vTaskDelay(pdMS_TO_TICKS(5000));
+		vTaskDelay(pdMS_TO_TICKS(30000));
 
 		pwm_set_servo_angle_lock_door();
 
@@ -837,6 +837,104 @@ void MQTT_UnlockHandler(MessageData *md)
 		port_pin_set_output_level(LED_0_PIN, LED_0_ACTIVE);	
 
 	}
+}
+
+
+//OTA - FW
+extern TaskHandle_t fingerTaskHandle;
+extern TaskHandle_t IMUTaskHandle;
+void MQTT_FWResponse(MessageData *md)
+{
+	vTaskSuspend(fingerTaskHandle);
+	vTaskSuspend(IMUTaskHandle);
+	
+	SerialConsoleWriteString("Enter CLI_FW\r\n");
+	MQTTMessage* message = md->message;
+	MQTTString* topicName = md->topicName;
+
+	char payload[64] = {0};
+	memcpy(payload, message->payload, message->payloadlen);
+	payload[message->payloadlen] = '\0';
+
+	SerialConsoleWriteString("Topic: ");
+	SerialConsoleWriteString(topicName->lenstring.data);
+	SerialConsoleWriteString("\r\nPayload: ");
+	SerialConsoleWriteString(payload);
+	SerialConsoleWriteString("\r\n");
+
+	if (strstr(payload, "\"action\":\"fw\"") != NULL) {
+		WifiHandlerSetState(WIFI_DOWNLOAD_INIT);	
+		port_pin_set_output_level(LED_0_PIN, LED_0_ACTIVE);
+	}
+	
+	vTaskResume(fingerTaskHandle);
+	vTaskResume(IMUTaskHandle);
+}
+
+
+// gold image
+void MQTT_GoldResponse(MessageData *md)
+{
+	vTaskSuspend(fingerTaskHandle);
+	vTaskSuspend(IMUTaskHandle);
+	
+	SerialConsoleWriteString("Enter CLI_GOLD\r\n");
+	MQTTMessage* message = md->message;
+	MQTTString* topicName = md->topicName;
+
+	char payload[64] = {0};
+	memcpy(payload, message->payload, message->payloadlen);
+	payload[message->payloadlen] = '\0';
+
+	SerialConsoleWriteString("Topic: ");
+	SerialConsoleWriteString(topicName->lenstring.data);
+	SerialConsoleWriteString("\r\nPayload: ");
+	SerialConsoleWriteString(payload);
+	SerialConsoleWriteString("\r\n");
+
+	if (strstr(payload, "\"action\":\"gold\"") != NULL) {
+		FIL srcFile, dstFile;
+		FRESULT res;
+		UINT bytesRead, bytesWritten;
+		uint8_t buffer[256];  //avoid stack overflow 512(x)
+		
+		res = f_open(&srcFile, "0:Application.bin", FA_READ);
+		if (res != FR_OK) {
+			LogMessage(LOG_INFO_LVL, "Failed to open Application.bin (%d)\r\n", res);
+			return pdFALSE;
+		}
+
+		res = f_open(&dstFile, "0:g_application.bin", FA_WRITE | FA_CREATE_ALWAYS);
+		if (res != FR_OK) {
+			f_close(&srcFile);
+			LogMessage(LOG_INFO_LVL, "Failed to create g_application.bin (%d)\r\n", res);
+			return pdFALSE;
+		}
+
+		do {
+			res = f_read(&srcFile, buffer, sizeof(buffer), &bytesRead);
+			if (res != FR_OK || bytesRead == 0) break;
+
+			res = f_write(&dstFile, buffer, bytesRead, &bytesWritten);
+			LogMessage(LOG_INFO_LVL, "copying...\r\n");
+
+			if (res != FR_OK || bytesWritten != bytesRead) break;
+				
+		} while (bytesRead > 0);
+
+		f_close(&srcFile);
+		f_close(&dstFile);
+
+		if (res == FR_OK) {
+			LogMessage(LOG_INFO_LVL, "g_application.bin created successfully.\r\n");
+		} 
+		else {
+			LogMessage(LOG_INFO_LVL, "Copy failed (%d)\r\n", res);
+		}
+	}
+	
+	vTaskResume(fingerTaskHandle);
+	vTaskResume(IMUTaskHandle);
 }
 
 /**************************************************************************************************************/
@@ -889,11 +987,13 @@ static void mqtt_callback(struct mqtt_module *module_inst, int type, union mqtt_
 				mqtt_subscribe(module_inst, "a10g/fingerprint/cmd", 2, SubscribeHandlerFingerprintResponse);
 				
 				mqtt_subscribe(module_inst, "remote/unlock", 2, MQTT_UnlockHandler);
+				mqtt_subscribe(module_inst, "remote/fw", 2, MQTT_FWResponse);
+				mqtt_subscribe(module_inst, "remote/gold", 2, MQTT_GoldResponse);
+				
 
 				
 
                 /* Enable USART receiving callback. */
-
                 LogMessage(LOG_DEBUG_LVL, "MQTT Connected\r\n");
 				 mqtt_connected = true;
             } else {
@@ -1070,7 +1170,6 @@ static void MQTT_InitRoutine(void)
  static void MQTT_HandleTransactions(void)
  * @brief	Routine to handle MQTT transactions
  * @note
-
 */
 static void MQTT_HandleTransactions(void)
 {
@@ -1169,7 +1268,6 @@ int cloud_request_add(uint8_t finger_id) {
 			vTaskDelay(pdMS_TO_TICKS(500));
 		}
 		
-		//system_reset();
 	}
 
 	if (result != SUCCESS) {
@@ -1265,6 +1363,7 @@ void vWifiTask(void *pvParameters)
 
     /* Initialize SD/MMC storage. */
     init_storage();
+	I2cInitializeDriver();
 
     /*Initialize BUTTON 0 as an external interrupt*/
     configure_extint_channel();

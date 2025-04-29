@@ -197,6 +197,8 @@ bool cloud_delete_permission_denied(void);
 void reset_cloud_permissions(void);
 
 void MQTT_UnlockHandler(MessageData *md);
+void MQTT_FWResponse(MessageData *md);
+void MQTT_GoldResponse(MessageData *md);
 void cloud_send_finger_ID(uint8_t finger_id);
 
 #ifdef __cplusplus

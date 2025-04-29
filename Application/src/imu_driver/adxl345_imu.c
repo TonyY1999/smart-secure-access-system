@@ -136,30 +136,29 @@ int adxl_read_xyz(int16_t *x, int16_t *y, int16_t *z)
     return 0;
 }
 
-#define VIBRATION_THRESHOLD 300
- extern TaskHandle_t fingerTaskHandle;
+#define VIBRATION_THRESHOLD 200
+extern TaskHandle_t fingerTaskHandle;
+
 void vIMUTask(void *pvParameters)
 {
 	// init IMU + buzzer
-	//adxl_init();
-	//buzzer_init();
-	vTaskSuspend(wifiTaskHandle);
-	if (adxl_init() != 0) {
-		SerialConsoleWriteString("IMU initialization failed!\r\n");
-		vTaskDelete(NULL);
-	}
-	
-	SerialConsoleWriteString("IMU initialized successfully.\r\n");
+	adxl_init();
+	buzzer_init();
 	
 	int16_t x, y, z;
 	int16_t prev_x = 0, prev_y = 0, prev_z = 0;
+	bool first_sample = true;
 	
-	while (1) {
-		
-		vTaskSuspend(wifiTaskHandle);
-		
+	while (1) {				
 		if (adxl_read_xyz(&x, &y, &z) == 0)
 		{
+			if (first_sample) {
+				prev_x = x;
+				prev_y = y;
+				prev_z = z;
+				first_sample = false;
+			}
+			
 			char msg[64];
 			snprintf(msg, sizeof(msg), "Accel X: %d, Y: %d, Z: %d\r\n", x, y, z);
 			SerialConsoleWriteString(msg);
@@ -172,7 +171,6 @@ void vIMUTask(void *pvParameters)
 				buzzer_on();
 				vTaskDelay(pdMS_TO_TICKS(5000));	
 				buzzer_off();
-				vTaskResume(fingerTaskHandle);
 			}
 
 			prev_x = x;
@@ -185,6 +183,6 @@ void vIMUTask(void *pvParameters)
 			SerialConsoleWriteString("Error reading ADXL345 data!\r\n");
 		}
 		//vTaskResume(wifiTaskHandle);
-		vTaskDelay(pdMS_TO_TICKS(6000));
+		vTaskDelay(pdMS_TO_TICKS(20000));
 	}
 }

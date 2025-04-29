@@ -224,24 +224,11 @@ extern volatile bool mqtt_connected;
 extern TaskHandle_t wifiTaskHandle;
 extern TaskHandle_t IMUTaskHandle;
 void handle_add_fingerprint(void) {
-	
 	SerialConsoleWriteString(">>> Requesting to Add Fingerprint from Cloud\r\n");
-	vTaskSuspend(IMUTaskHandle);
-	taskYIELD();
-	vTaskResume(wifiTaskHandle);
-	taskYIELD();
 	
-	uint16_t timeout = 100; 
-
-	while (!mqtt_connected ) {
-		SerialConsoleWriteString("waiting mqtt\r\n");
-		vTaskDelay(pdMS_TO_TICKS(100));
-	}
-
-	//if (!mqtt_connected) {
-		//SerialConsoleWriteString("[Error] MQTT Connect Timeout!\r\n");
-		//return; 
-	//}
+	vTaskSuspend(fingerTaskHandle);
+	vTaskSuspend(IMUTaskHandle);
+	
 	uint8_t finger_id = find_smallest_index();
 	//uint8_t finger_id = 1;
 	reset_cloud_permissions();
@@ -263,20 +250,26 @@ void handle_add_fingerprint(void) {
 		}
 
 		if (cloud_add_permission_granted()) {
-			vTaskSuspend(fingerTaskHandle);
 			LCD_setScreen(rgb565(0, 0, 0));
 			LCD_drawString(10, 30, "Cloud allow add", rgb565(0,255,0), rgb565(0,0,0));
-			LCD_drawString(10, 60, "Please put your finger on", rgb565(0,255,0), rgb565(0,0,0));
+			LCD_drawString(10, 60, "Please put your finger", rgb565(0,255,0), rgb565(0,0,0));
 			SerialConsoleWriteString("Cloud allowed, start fingerprint enroll!\r\n");
 			
 			// add fingerprint
-			while(fingerprint_enroll(finger_id) != 0);
+			while(fingerprint_enroll(finger_id) != 0) {
+				vTaskDelay(pdMS_TO_TICKS(100));
+			}
+			
+			LCD_setScreen(rgb565(0, 0, 0));
+			LCD_drawString(10, 30, "Add done", rgb565(0,255,0), rgb565(0,0,0));
+			vTaskDelay(pdMS_TO_TICKS(1000));	
+			SerialConsoleWriteString("Add done\r\n");
 			
 			port_pin_set_output_level(LED_0_PIN, LED_0_ACTIVE);
 		}
 		else if (cloud_add_permission_denied()) {
 			LCD_setScreen(rgb565(0, 0, 0));
-			LCD_drawString(10, 30, "Cloud DENIED Add", rgb565(255,0,0), rgb565(0,0,0));
+			LCD_drawString(10, 30, "Cloud denied Add", rgb565(255,0,0), rgb565(0,0,0));
 			SerialConsoleWriteString("Cloud denied add request.\r\n");
 		}
 		else if (timeout_occurred) {
@@ -288,38 +281,30 @@ void handle_add_fingerprint(void) {
 		vTaskDelay(pdMS_TO_TICKS(5000));
 
 	}
-	else {
-		
+	else {	
 		LCD_setScreen(rgb565(0, 0, 0));
 		LCD_drawString(10, 30, "Failed to send add request!", rgb565(255,0,0), rgb565(0,0,0));
 		SerialConsoleWriteString("[Error] Failed to publish add request.\r\n");
 
 		vTaskDelay(pdMS_TO_TICKS(5000));
 	}
-
-	system_reset();
+	
+	LCD_setScreen(rgb565(0, 0, 0));
+	LCD_drawMenu(0);
+	
+	vTaskResume(fingerTaskHandle);
+	vTaskResume(IMUTaskHandle);
 }
 
 void handle_delete_fingerprint(void) {
 	SerialConsoleWriteString(">>> Requesting to Delete Fingerprint from Cloud\r\n");
-
+	
+	vTaskSuspend(fingerTaskHandle);
+	vTaskSuspend(IMUTaskHandle);
+	
+	LCD_setScreen(rgb565(0, 0, 0));
 	LCD_drawString(10, 60, "Please put your finger on", rgb565(0,255,0), rgb565(0,0,0));
 	
-	//int finger_id = 1;
-	//fingerprint_init();
-	vTaskSuspend(IMUTaskHandle);
-	taskYIELD();
-	vTaskResume(wifiTaskHandle);
-	taskYIELD();
-	vTaskSuspend(fingerTaskHandle);
-	taskYIELD();
-	
-	while (!mqtt_connected ) {
-		SerialConsoleWriteString("waiting mqtt\r\n");
-		vTaskDelay(pdMS_TO_TICKS(100));
-	}
-	
-
 	int finger_id;
 	while(1) {
 		finger_id = fingerprint_search();
@@ -346,13 +331,14 @@ void handle_delete_fingerprint(void) {
 			}
 			vTaskDelay(pdMS_TO_TICKS(10));
 		}
+		
 		if (timeout == 0) {
 			timeout_occurred = true;
 		}
 
 		if (cloud_delete_permission_granted()) {
 			LCD_setScreen(rgb565(0, 0, 0));
-			LCD_drawString(10, 30, "Cloud ALLOWED Delete", rgb565(0,255,0), rgb565(0,0,0));
+			LCD_drawString(10, 30, "Cloud allowed delete", rgb565(0,255,0), rgb565(0,0,0));
 			SerialConsoleWriteString("Cloud allowed delete, now deleting fingerprint...\r\n");
 
 			//delete fingerprint
@@ -363,7 +349,7 @@ void handle_delete_fingerprint(void) {
 		}
 		else if (cloud_delete_permission_denied()) {
 			LCD_setScreen(rgb565(0, 0, 0));
-			LCD_drawString(10, 30, "Cloud DENIED Delete", rgb565(255,0,0), rgb565(0,0,0));
+			LCD_drawString(10, 30, "Cloud denied Delete", rgb565(255,0,0), rgb565(0,0,0));
 			SerialConsoleWriteString("Cloud denied delete request.\r\n");
 		}
 		else if (timeout_occurred) {
@@ -371,21 +357,18 @@ void handle_delete_fingerprint(void) {
 			LCD_drawString(10, 30, "Timeout waiting cloud", rgb565(255,255,0), rgb565(0,0,0));
 			SerialConsoleWriteString("[Error] Timeout waiting cloud response.\r\n");
 		}
-
-		vTaskDelay(pdMS_TO_TICKS(5000));
-
 	}
 	else {
 		LCD_setScreen(rgb565(0, 0, 0));
 		LCD_drawString(10, 30, "Failed to send delete request!", rgb565(255,0,0), rgb565(0,0,0));
 		SerialConsoleWriteString("[Error] Failed to publish delete request.\r\n");
-
-		vTaskDelay(pdMS_TO_TICKS(5000));
 	}
 	
-	//LCD_setScreen(rgb565(0, 0, 0));
-	//LCD_drawMenu(0);
-	system_reset();
+	LCD_setScreen(rgb565(0, 0, 0));
+	LCD_drawMenu(0);
+	
+	vTaskResume(fingerTaskHandle);
+	vTaskResume(IMUTaskHandle);
 }
 
 void LCD_handleSelection(int selected) {
@@ -410,8 +393,6 @@ void LCD_handleSelection(int selected) {
 	}
 }
 
-
-
 void vLCDTask(void *pvParameters){
 	// init LCD module + encoder
 	lcd_init();
@@ -424,9 +405,6 @@ void vLCDTask(void *pvParameters){
 	int selected = 0;
 	
 	while (1) {
-		
-		
-		
 		LCD_handleRotation(encoder_get_rotation(), &selected);
 
 		if (encoder_button_confirmed()) {

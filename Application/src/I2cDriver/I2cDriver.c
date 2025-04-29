@@ -408,7 +408,6 @@ int32_t I2cReadDataWait(I2C_Data *data, const TickType_t delay, const TickType_t
     if (ERROR_NONE != error) goto exit;
 
     //---2. Initiate sending data
-
     error = I2cWriteData(data);
     if (ERROR_NONE != error) {
         goto exitError0;

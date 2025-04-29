@@ -65,7 +65,7 @@ static void StartTasks(void);  //!< Initial task used to initialize HW before ot
  * Application entry point.
  * @return int
  */
-int main(void) {	
+int main(void) {
     /* Initialize the board. */
     system_init();
 	
@@ -89,6 +89,12 @@ static void StartTasks(void) {
     snprintf(bufferPrint, 64, "Heap before starting tasks: %d\r\n", xPortGetFreeHeapSize());
     SerialConsoleWriteString(bufferPrint);
 	
+	if (xTaskCreate(vIMUTask, "IMU_TASK", 200, NULL, 4, &IMUTaskHandle) != pdPASS) {
+		SerialConsoleWriteString("ERR: IMU task could not be initialized!\r\n");
+	}
+	snprintf(bufferPrint, 64, "Heap after starting IMU: %d\r\n", xPortGetFreeHeapSize());
+	SerialConsoleWriteString(bufferPrint);
+	
 	// create WIFI task here
 	if (xTaskCreate(vWifiTask, "WIFI_TASK", 700, NULL, 3, &wifiTaskHandle) != pdPASS) {
 		SerialConsoleWriteString("ERR: WIFI task could not be initialized!\r\n");
@@ -96,12 +102,6 @@ static void StartTasks(void) {
 	snprintf(bufferPrint, 64, "Heap after starting wiif task: %d\r\n", xPortGetFreeHeapSize());
 	SerialConsoleWriteString(bufferPrint);
 	
-	if (xTaskCreate(vIMUTask, "IMU_TASK", 200, NULL, 4, &IMUTaskHandle) != pdPASS) {
-		SerialConsoleWriteString("ERR: IMU task could not be initialized!\r\n");
-	}
-	snprintf(bufferPrint, 64, "Heap after starting IMU: %d\r\n", xPortGetFreeHeapSize());
-	SerialConsoleWriteString(bufferPrint);
-	//
 	////create LCD module task here
  	if (xTaskCreate(vLCDTask, "LCD_TASK", 700, NULL, 5, NULL) != pdPASS) {
 	 	SerialConsoleWriteString("ERR: LCD task could not be initialized!\r\n");
@@ -115,9 +115,6 @@ static void StartTasks(void) {
  	}
  	snprintf(bufferPrint, 64, "Heap after starting fingerprint module: %d\r\n", xPortGetFreeHeapSize());
  	SerialConsoleWriteString(bufferPrint);
-	
-	// create IMU task here
-	
 }
 
 /******************************************************************************
@@ -132,10 +129,6 @@ static void StartTasks(void) {
 void vApplicationDaemonTaskStartupHook(void) {
 	// initialize the UART console
 	InitializeSerialConsole();
-	
-	//fingerprint_init();
-	//config_servo();
-	//adxl_init();
 	
     SerialConsoleWriteString("\x0C\n\r-----Smart Secure Access System-----\r\n");
 	

@@ -358,12 +358,7 @@ void fingerprint_task(void *pvParameters){
 	{
 		int finger_id = fingerprint_search();
 		if (finger_id != -1)
-		{
-			vTaskSuspend(IMUTaskHandle);
-			taskYIELD();
-			vTaskResume(wifiTaskHandle);
-			taskYIELD();
-			
+		{	
 			uint16_t timeout = 100;
 
 			while (!mqtt_connected ) {
@@ -377,12 +372,9 @@ void fingerprint_task(void *pvParameters){
 			config_servo();
 			pwm_set_servo_angle_unlock_door();
 			vTaskDelay(pdMS_TO_TICKS(30000));
-			//pwm_set_servo_angle_lock_door();
-			
-			system_reset();
-			
-			
+			pwm_set_servo_angle_lock_door();
 		}
+		
 		vTaskDelay(pdMS_TO_TICKS(6000));
 	}
 }
