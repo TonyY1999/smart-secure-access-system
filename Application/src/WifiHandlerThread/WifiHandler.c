@@ -389,34 +389,33 @@ void SubscribeHandlerFingerprintResponse(MessageData *msgData)
 	SerialConsoleWriteString(payload);
 	SerialConsoleWriteString("\r\n");
 
-	if (!strstr(payload, "\"result\"")) {
+	if (!strstr(payload, "\"r\"")) {
 		SerialConsoleWriteString("Ignored non-response message.\r\n");
 		return;
 	}
 
 	// Add
-	if (strstr(payload, "\"action\":\"add\"")) {
-		if (strstr(payload, "\"result\":\"allow\"")) {
-			add_permission_status = 1;
-			SerialConsoleWriteString("Cloud allowed ADD.\r\n");
-		}
-		else if (strstr(payload, "\"result\":\"deny\"")) {
-			add_permission_status = -1;
-			SerialConsoleWriteString("Cloud denied ADD.\r\n");
-		}
-	}
+	if (strstr(payload, "\"a\":\"a\"")) {
+    if (strstr(payload, "\"r\":\"allow\"")) {
+        add_permission_status = 1;
+        SerialConsoleWriteString("Cloud allowed ADD.\r\n");
+    }
+    else if (strstr(payload, "\"r\":\"deny\"")) {
+        add_permission_status = -1;
+        SerialConsoleWriteString("Cloud denied ADD.\r\n");
+    }
+}
 
-	// Delete
-	if (strstr(payload, "\"action\":\"delete\"")) {
-		if (strstr(payload, "\"result\":\"allow\"")) {
-			delete_permission_status = 1;
-			SerialConsoleWriteString("Cloud allowed DELETE.\r\n");
-		}
-		else if (strstr(payload, "\"result\":\"deny\"")) {
-			delete_permission_status = -1;
-			SerialConsoleWriteString("Cloud denied DELETE.\r\n");
-		}
-	}
+if (strstr(payload, "\"a\":\"d\"")) {
+    if (strstr(payload, "\"r\":\"allow\"")) {
+        delete_permission_status = 1;
+        SerialConsoleWriteString("Cloud allowed DELETE.\r\n");
+    }
+    else if (strstr(payload, "\"r\":\"deny\"")) {
+        delete_permission_status = -1;
+        SerialConsoleWriteString("Cloud denied DELETE.\r\n");
+    }
+}
 }
 
 //remote open the door
@@ -709,7 +708,7 @@ void reset_cloud_permissions(void)
 int cloud_request_add(uint8_t finger_id) {
 	char payload[64];
 	//snprintf(payload, sizeof(payload), "{\"request\":\"add\",\"finger_id\":%d}", finger_id);
-	snprintf(payload, sizeof(payload), "{\"request\":\"add\",\"finger_id\":%d}", finger_id);
+	snprintf(payload, sizeof(payload), "{\"r\":\"a\",\"id\":%d}", finger_id);
 
 	int retries = 3;
 	int result = FAILURE;
@@ -747,48 +746,9 @@ int cloud_request_add(uint8_t finger_id) {
 	return result;
 }
 
-//int cloud_request_delete(uint8_t finger_id) {
-	//char payload[64];
-	//snprintf(payload, sizeof(payload), "{\"request\":\"delete\",\"finger_id\":%d}", finger_id);
-	//
-	//int retries = 3;
-	//int result = FAILURE;
-//
-	//while (retries--) {
-		//SerialConsoleWriteString("[Debug] Trying to publish DELETE request...\r\n");
-//
-		//
-		//TickType_t start_tick = xTaskGetTickCount();
-		//TickType_t timeout_tick = pdMS_TO_TICKS(2000);
-//
-//
-		//result = mqtt_publish(&mqtt_inst, "a10g/library/fingerprint", payload, strlen(payload), 1, 0);
-//
-		//
-		//if ((xTaskGetTickCount() - start_tick) > timeout_tick) {
-			//SerialConsoleWriteString("[Error] Publish DELETE request timeout!\r\n");
-			//result = FAILURE;
-		//}
-//
-		//if (result == SUCCESS) {
-			//SerialConsoleWriteString("Sent DELETE request to cloud.\r\n");
-			//break;
-			//} else {
-			//SerialConsoleWriteString("[Error] Publish failed, retrying...\r\n");
-			//vTaskDelay(pdMS_TO_TICKS(500));
-		//}
-	//}
-//
-	//if (result != SUCCESS) {
-		//SerialConsoleWriteString("[Error] Failed to send DELETE request after retries.\r\n");
-	//}
-//
-	//return result;
-//}
-
 int cloud_request_delete(uint8_t finger_id) {
 	char payload[64];
-	snprintf(payload, sizeof(payload), "{\"request\":\"delete\",\"finger_id\":%d}", finger_id);
+	snprintf(payload, sizeof(payload), "{\"r\":\"d\",\"id\":%d}", finger_id);
 	
 	int retries = 3;
 	int result = FAILURE;
