@@ -183,6 +183,6 @@ void vIMUTask(void *pvParameters)
 			SerialConsoleWriteString("Error reading ADXL345 data!\r\n");
 		}
 
-		vTaskDelay(pdMS_TO_TICKS(3000));
+		vTaskDelay(pdMS_TO_TICKS(15000));
 	}
 }

@@ -288,7 +288,7 @@ int fingerprint_search() {
 	
 	uint8_t ack[16];
 	while(fingerprint_read_response(ack, sizeof(ack)) != STATUS_OK) {
-		vTaskDelay(pdMS_TO_TICKS(100));
+		vTaskDelay(pdMS_TO_TICKS(1000));
 	}	
 	
 	if(ack[9] == 0) {

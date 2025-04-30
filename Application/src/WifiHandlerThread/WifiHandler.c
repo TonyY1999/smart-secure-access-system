@@ -747,28 +747,56 @@ int cloud_request_add(uint8_t finger_id) {
 	return result;
 }
 
+//int cloud_request_delete(uint8_t finger_id) {
+	//char payload[64];
+	//snprintf(payload, sizeof(payload), "{\"request\":\"delete\",\"finger_id\":%d}", finger_id);
+	//
+	//int retries = 3;
+	//int result = FAILURE;
+//
+	//while (retries--) {
+		//SerialConsoleWriteString("[Debug] Trying to publish DELETE request...\r\n");
+//
+		//
+		//TickType_t start_tick = xTaskGetTickCount();
+		//TickType_t timeout_tick = pdMS_TO_TICKS(2000);
+//
+//
+		//result = mqtt_publish(&mqtt_inst, "a10g/library/fingerprint", payload, strlen(payload), 1, 0);
+//
+		//
+		//if ((xTaskGetTickCount() - start_tick) > timeout_tick) {
+			//SerialConsoleWriteString("[Error] Publish DELETE request timeout!\r\n");
+			//result = FAILURE;
+		//}
+//
+		//if (result == SUCCESS) {
+			//SerialConsoleWriteString("Sent DELETE request to cloud.\r\n");
+			//break;
+			//} else {
+			//SerialConsoleWriteString("[Error] Publish failed, retrying...\r\n");
+			//vTaskDelay(pdMS_TO_TICKS(500));
+		//}
+	//}
+//
+	//if (result != SUCCESS) {
+		//SerialConsoleWriteString("[Error] Failed to send DELETE request after retries.\r\n");
+	//}
+//
+	//return result;
+//}
+
 int cloud_request_delete(uint8_t finger_id) {
 	char payload[64];
 	snprintf(payload, sizeof(payload), "{\"request\":\"delete\",\"finger_id\":%d}", finger_id);
-
+	
 	int retries = 3;
 	int result = FAILURE;
 
 	while (retries--) {
 		SerialConsoleWriteString("[Debug] Trying to publish DELETE request...\r\n");
 
-		
-		TickType_t start_tick = xTaskGetTickCount();
-		TickType_t timeout_tick = pdMS_TO_TICKS(2000);
-
-
-		result = mqtt_publish(&mqtt_inst, "a10g/library/fingerprint", payload, strlen(payload), 1, 0);
-
-		
-		if ((xTaskGetTickCount() - start_tick) > timeout_tick) {
-			SerialConsoleWriteString("[Error] Publish DELETE request timeout!\r\n");
-			result = FAILURE;
-		}
+		result = mqtt_publish(&mqtt_inst, "a10g/library/fingerprint", payload, strlen(payload), 2, 0);
 
 		if (result == SUCCESS) {
 			SerialConsoleWriteString("Sent DELETE request to cloud.\r\n");
@@ -785,6 +813,7 @@ int cloud_request_delete(uint8_t finger_id) {
 
 	return result;
 }
+
 
 // send ID to cloud when unlock the door
 void cloud_send_finger_ID(uint8_t finger_id) {
@@ -862,7 +891,7 @@ static void mqtt_callback(struct mqtt_module *module_inst, int type, union mqtt_
             if (data->connected.result == MQTT_CONN_RESULT_ACCEPT) {
 				
                 /* Subscribe chat topic. */			
-				mqtt_subscribe(module_inst, "a10g/fingerprint/cmd", 1, SubscribeHandlerFingerprintResponse);
+				mqtt_subscribe(module_inst, "a10g/fingerprint/cmd", 2, SubscribeHandlerFingerprintResponse);
 				
 				mqtt_subscribe(module_inst, "remote/unlock", 2, MQTT_UnlockHandler);
 				mqtt_subscribe(module_inst, "remote/fw", 2, MQTT_FWResponse);
