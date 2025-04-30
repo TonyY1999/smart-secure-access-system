@@ -264,8 +264,12 @@ void handle_add_fingerprint(void) {
 			
 			LCD_setScreen(rgb565(0, 0, 0));
 			LCD_drawString(10, 30, "Add done", rgb565(0,255,0), rgb565(0,0,0));
-			vTaskDelay(pdMS_TO_TICKS(1000));	
+			//system_reset();
+			//vTaskDelay(pdMS_TO_TICKS(1000));	
 			SerialConsoleWriteString("Add done\r\n");
+				vTaskResume(fingerTaskHandle);
+				//vTaskResume(IMUTaskHandle);
+			
 		}
 		else if (cloud_add_permission_denied()) {
 			LCD_setScreen(rgb565(0, 0, 0));
@@ -286,11 +290,7 @@ void handle_add_fingerprint(void) {
 	
 	vTaskDelay(pdMS_TO_TICKS(5000));
 	
-	LCD_setScreen(rgb565(0, 0, 0));
-	LCD_drawMenu(0);
-	
-	vTaskResume(fingerTaskHandle);
-	vTaskResume(IMUTaskHandle);
+	system_reset();
 }
 
 void handle_delete_fingerprint(void) {
@@ -357,7 +357,7 @@ void handle_delete_fingerprint(void) {
 	}
 	
 	vTaskDelay(pdMS_TO_TICKS(5000));
-	
+
 	system_reset();
 }
 

@@ -171,6 +171,7 @@ void vIMUTask(void *pvParameters)
 				buzzer_on();
 				vTaskDelay(pdMS_TO_TICKS(5000));	
 				buzzer_off();
+				
 			}
 
 			prev_x = x;
