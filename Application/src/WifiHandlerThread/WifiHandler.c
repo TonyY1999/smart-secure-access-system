@@ -396,11 +396,11 @@ void SubscribeHandlerFingerprintResponse(MessageData *msgData)
 
 	// Add
 	if (strstr(payload, "\"action\":\"add\"")) {
-		if (strstr(payload, "\"request\":\"allow\"")) {
+		if (strstr(payload, "\"result\":\"allow\"")) {
 			add_permission_status = 1;
 			SerialConsoleWriteString("Cloud allowed ADD.\r\n");
 		}
-		else if (strstr(payload, "\"request\":\"deny\"")) {
+		else if (strstr(payload, "\"result\":\"deny\"")) {
 			add_permission_status = -1;
 			SerialConsoleWriteString("Cloud denied ADD.\r\n");
 		}
@@ -408,11 +408,11 @@ void SubscribeHandlerFingerprintResponse(MessageData *msgData)
 
 	// Delete
 	if (strstr(payload, "\"action\":\"delete\"")) {
-		if (strstr(payload, "\"request\":\"allow\"")) {
+		if (strstr(payload, "\"result\":\"allow\"")) {
 			delete_permission_status = 1;
 			SerialConsoleWriteString("Cloud allowed DELETE.\r\n");
 		}
-		else if (strstr(payload, "\"request\":\"deny\"")) {
+		else if (strstr(payload, "\"result\":\"deny\"")) {
 			delete_permission_status = -1;
 			SerialConsoleWriteString("Cloud denied DELETE.\r\n");
 		}
