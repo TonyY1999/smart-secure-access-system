@@ -136,7 +136,7 @@ int adxl_read_xyz(int16_t *x, int16_t *y, int16_t *z)
     return 0;
 }
 
-#define VIBRATION_THRESHOLD 200
+#define VIBRATION_THRESHOLD 300
 extern TaskHandle_t fingerTaskHandle;
 
 void vIMUTask(void *pvParameters)
@@ -169,9 +169,6 @@ void vIMUTask(void *pvParameters)
 				port_pin_set_output_level(LED_0_PIN,LED_0_ACTIVE);
 				buzzer_init();
 				buzzer_on();
-				vTaskDelay(pdMS_TO_TICKS(5000));	
-				buzzer_off();
-				
 			}
 
 			prev_x = x;
