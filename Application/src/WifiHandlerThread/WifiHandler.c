@@ -1,9 +1,8 @@
 /**
  * @file      WifiHandler.c
  * @brief     File to handle HTTP Download and MQTT support
- * @author    Eduardo Garcia
- * @date      2020-01-01
-
+ * @author    Tony Yan & Yue Zhang
+ * @date      2025-04-28
  ******************************************************************************/
 
 /******************************************************************************
@@ -11,7 +10,6 @@
  ******************************************************************************/
 #include "WifiHandlerThread/WifiHandler.h"
 #include "I2cDriver/I2cDriver.h"
-
 #include <errno.h>
 
 /******************************************************************************
@@ -21,34 +19,29 @@
 /******************************************************************************
  * Variables
  ******************************************************************************/
-volatile char mqtt_msg[64] = "{\"d\":{\"temp\":17}}\"";
-volatile char mqtt_msg_temp[64] = "{\"d\":{\"temp\":17}}\"";
-
-volatile uint32_t temperature = 1;
 int8_t wifiStateMachine = WIFI_MQTT_INIT;   ///< Global variable that determines the state of the WIFI handler.
 QueueHandle_t xQueueWifiState = NULL;       ///< Queue to determine the Wifi state from other threads.
-QueueHandle_t xQueueGameBuffer = NULL;      ///< Queue to send the next play to the cloud
-QueueHandle_t xQueueImuBuffer = NULL;       ///< Queue to send IMU data to the cloud
-QueueHandle_t xQueueDistanceBuffer = NULL;  ///< Queue to send the distance to the cloud
 
 /*HTTP DOWNLOAD RELATED DEFINES AND VARIABLES*/
-
 uint8_t do_download_flag = false;  // Flag that when true initializes a download. False to connect to MQTT broker
+
 /** File download processing state. */
 download_state down_state = NOT_READY;
+
 /** SD/MMC mount. */
 static FATFS fatfs;
+
 /** File pointer for file download. */
 static FIL file_object;
+
 /** Http content length. */
 static uint32_t http_file_size = 0;
+
 /** Receiving content length. */
 static uint32_t received_file_size = 0;
+
 /** File name to download. */
 static char save_file_name[MAIN_MAX_FILE_NAME_LENGTH + 1] = "0:";
-
-/** UART module for debug. */
-// static struct usart_module cdc_uart_module;
 
 /** Instance of Timer module. */
 struct sw_timer_module swt_module_inst;
@@ -57,10 +50,6 @@ struct sw_timer_module swt_module_inst;
 struct http_client_module http_client_module_inst;
 
 /*MQTT RELATED DEFINES AND VARIABLES*/
-
-/** User name of chat. */
-char mqtt_user[64] = "Unit1";
-
 /* Instance of MQTT service. */
 static struct mqtt_module mqtt_inst;
 
@@ -68,25 +57,31 @@ static struct mqtt_module mqtt_inst;
 static unsigned char mqtt_read_buffer[MAIN_MQTT_BUFFER_SIZE];
 static unsigned char mqtt_send_buffer[MAIN_MQTT_BUFFER_SIZE];
 
-volatile bool should_reset = false;
+bool should_reset = false;
+
+int add_permission_status = 0;
+int delete_permission_status = 0;
+
+bool mqtt_connected = false;
+
+extern TaskHandle_t fingerTaskHandle;
+extern TaskHandle_t IMUTaskHandle;
 
 /******************************************************************************
  * Forward Declarations
  ******************************************************************************/
-static void MQTT_InitRoutine(void);
-static void MQTT_HandleGameMessages(void);
-static void MQTT_HandleImuMessages(void);
-static void HTTP_DownloadFileInit(void);
-static void HTTP_DownloadFileTransaction(void);
-
-static void MQTT_HandleButtonMessages(void);
+static void mqtt_callback(struct mqtt_module *module_inst, int type, union mqtt_data *data);
+static void http_client_callback(struct http_client_module *module_inst, int type, union http_client_data *data);
+static void socket_cb(SOCKET sock, uint8_t u8Msg, void *pvMsg);
+static void resolve_cb(uint8_t *pu8DomainName, uint32_t u32ServerIP);
+static void wifi_cb(uint8_t u8MsgType, void *pvMsg);
+static void socket_event_handler(SOCKET sock, uint8_t msg_type, void *msg_data);
+static void socket_resolve_handler(uint8_t *doamin_name, uint32_t server_ip);
 
 /******************************************************************************
- * Callback Functions
+ * Local Functions
  ******************************************************************************/
-
 /*HTPP RELATED STATIOC FUNCTIONS*/
-
 /**
  * \brief Initialize download state to not ready.
  */
@@ -118,7 +113,6 @@ static void add_state(download_state mask)
  * \param[in] mask Check download_state.
  * \return true if this state is set, false otherwise.
  */
-
 bool is_state_set(download_state mask)
 {
     return ((down_state & mask) != 0);
@@ -303,6 +297,592 @@ static void store_file_packet(char *data, uint32_t length)
             add_state(COMPLETED);
             return;
         }
+    }
+}
+
+/**
+ * \brief Initialize SD/MMC storage.
+ */
+void init_storage(void)
+{
+    FRESULT res;
+    Ctrl_status status;
+
+    /* Initialize SD/MMC stack. */
+    sd_mmc_init();
+    while (true) {
+        LogMessage(LOG_DEBUG_LVL, "init_storage: please plug an SD/MMC card in slot...\r\n");
+
+        /* Wait card present and ready. */
+        do {
+            status = sd_mmc_test_unit_ready(0);
+            if (CTRL_FAIL == status) {
+                LogMessage(LOG_DEBUG_LVL, "init_storage: SD Card install failed.\r\n");
+                LogMessage(LOG_DEBUG_LVL, "init_storage: try unplug and re-plug the card.\r\n");
+                while (CTRL_NO_PRESENT != sd_mmc_check(0)) {
+                }
+            }
+        } while (CTRL_GOOD != status);
+
+        LogMessage(LOG_DEBUG_LVL, "init_storage: mounting SD card...\r\n");
+        memset(&fatfs, 0, sizeof(FATFS));
+        res = f_mount(LUN_ID_SD_MMC_0_MEM, &fatfs);
+        if (FR_INVALID_DRIVE == res) {
+            LogMessage(LOG_DEBUG_LVL, "init_storage: SD card mount failed! (res %d)\r\n", res);
+            return;
+        }
+
+        LogMessage(LOG_DEBUG_LVL, "init_storage: SD card mount OK.\r\n");
+        add_state(STORAGE_READY);
+        return;
+    }
+}
+
+/**
+ * \brief Configure Timer module.
+ */
+static void configure_timer(void)
+{
+    struct sw_timer_config swt_conf;
+    sw_timer_get_config_defaults(&swt_conf);
+
+    sw_timer_init(&swt_module_inst, &swt_conf);
+    sw_timer_enable(&swt_module_inst);
+}
+
+/**
+ * \brief Configure HTTP client module.
+ */
+static void configure_http_client(void)
+{
+    struct http_client_config httpc_conf;
+    int ret;
+
+    http_client_get_config_defaults(&httpc_conf);
+
+    httpc_conf.recv_buffer_size = MAIN_BUFFER_MAX_SIZE;
+    httpc_conf.timer_inst = &swt_module_inst;
+
+    ret = http_client_init(&http_client_module_inst, &httpc_conf);
+    if (ret < 0) {
+        LogMessage(LOG_DEBUG_LVL, "configure_http_client: HTTP client initialization failed! (res %d)\r\n", ret);
+        while (1) {
+        } /* Loop forever. */
+    }
+
+    http_client_register_callback(&http_client_module_inst, http_client_callback);
+}
+
+//For add/delete fingerprint
+void SubscribeHandlerFingerprintResponse(MessageData *msgData)
+{
+	char payload[128] = {0};
+	size_t len = msgData->message->payloadlen;
+
+	if (len >= sizeof(payload)) {
+		len = sizeof(payload) - 1;
+	}
+	memcpy(payload, msgData->message->payload, len);
+	payload[len] = '\0';
+
+	SerialConsoleWriteString("Received MQTT from cloud: ");
+	SerialConsoleWriteString(payload);
+	SerialConsoleWriteString("\r\n");
+
+	if (!strstr(payload, "\"result\"")) {
+		SerialConsoleWriteString("Ignored non-response message.\r\n");
+		return;
+	}
+
+	// Add
+	if (strstr(payload, "\"action\":\"add\"")) {
+		if (strstr(payload, "\"request\":\"allow\"")) {
+			add_permission_status = 1;
+			SerialConsoleWriteString("Cloud allowed ADD.\r\n");
+		}
+		else if (strstr(payload, "\"request\":\"deny\"")) {
+			add_permission_status = -1;
+			SerialConsoleWriteString("Cloud denied ADD.\r\n");
+		}
+	}
+
+	// Delete
+	if (strstr(payload, "\"action\":\"delete\"")) {
+		if (strstr(payload, "\"request\":\"allow\"")) {
+			delete_permission_status = 1;
+			SerialConsoleWriteString("Cloud allowed DELETE.\r\n");
+		}
+		else if (strstr(payload, "\"request\":\"deny\"")) {
+			delete_permission_status = -1;
+			SerialConsoleWriteString("Cloud denied DELETE.\r\n");
+		}
+	}
+}
+
+//remote open the door
+void MQTT_UnlockHandler(MessageData *md)
+{
+	SerialConsoleWriteString("Enter MQTT_UnlockHandler\r\n");
+	MQTTMessage* message = md->message;
+	MQTTString* topicName = md->topicName;
+
+	char payload[64] = {0};
+	memcpy(payload, message->payload, message->payloadlen);
+	payload[message->payloadlen] = '\0';
+
+	SerialConsoleWriteString("Topic: ");
+	SerialConsoleWriteString(topicName->lenstring.data);
+	SerialConsoleWriteString("\r\nPayload: ");
+	SerialConsoleWriteString(payload);
+	SerialConsoleWriteString("\r\n");
+
+	if (strstr(payload, "\"action\":\"unlock\"") != NULL) {
+		SerialConsoleWriteString("Action matched: UNLOCK\r\n");
+		
+		//servo motor
+		pwm_set_servo_angle_unlock_door();
+		vTaskDelay(pdMS_TO_TICKS(30000));
+
+		pwm_set_servo_angle_lock_door();
+	}
+}
+
+//OTA - FW
+void MQTT_FWResponse(MessageData *md)
+{
+	vTaskSuspend(fingerTaskHandle);
+	vTaskSuspend(IMUTaskHandle);
+	
+	SerialConsoleWriteString("Enter CLI_FW\r\n");
+	MQTTMessage* message = md->message;
+	MQTTString* topicName = md->topicName;
+
+	char payload[64] = {0};
+	memcpy(payload, message->payload, message->payloadlen);
+	payload[message->payloadlen] = '\0';
+
+	SerialConsoleWriteString("Topic: ");
+	SerialConsoleWriteString(topicName->lenstring.data);
+	SerialConsoleWriteString("\r\nPayload: ");
+	SerialConsoleWriteString(payload);
+	SerialConsoleWriteString("\r\n");
+
+	if (strstr(payload, "\"action\":\"fw\"") != NULL) {
+		WifiHandlerSetState(WIFI_DOWNLOAD_INIT);
+		port_pin_set_output_level(LED_0_PIN, LED_0_ACTIVE);
+	}
+	
+	vTaskResume(fingerTaskHandle);
+	vTaskResume(IMUTaskHandle);
+}
+
+// gold image
+void MQTT_GoldResponse(MessageData *md)
+{
+	vTaskSuspend(fingerTaskHandle);
+	vTaskSuspend(IMUTaskHandle);
+	
+	SerialConsoleWriteString("Enter CLI_GOLD\r\n");
+	MQTTMessage* message = md->message;
+	MQTTString* topicName = md->topicName;
+
+	char payload[64] = {0};
+	memcpy(payload, message->payload, message->payloadlen);
+	payload[message->payloadlen] = '\0';
+
+	SerialConsoleWriteString("Topic: ");
+	SerialConsoleWriteString(topicName->lenstring.data);
+	SerialConsoleWriteString("\r\nPayload: ");
+	SerialConsoleWriteString(payload);
+	SerialConsoleWriteString("\r\n");
+
+	if (strstr(payload, "\"action\":\"gold\"") != NULL) {
+		FIL srcFile, dstFile;
+		FRESULT res;
+		UINT bytesRead, bytesWritten;
+		uint8_t buffer[256];  //avoid stack overflow 512(x)
+		
+		res = f_open(&srcFile, "0:Application.bin", FA_READ);
+		if (res != FR_OK) {
+			LogMessage(LOG_INFO_LVL, "Failed to open Application.bin (%d)\r\n", res);
+			return pdFALSE;
+		}
+
+		res = f_open(&dstFile, "0:g_application.bin", FA_WRITE | FA_CREATE_ALWAYS);
+		if (res != FR_OK) {
+			f_close(&srcFile);
+			LogMessage(LOG_INFO_LVL, "Failed to create g_application.bin (%d)\r\n", res);
+			return pdFALSE;
+		}
+
+		do {
+			res = f_read(&srcFile, buffer, sizeof(buffer), &bytesRead);
+			if (res != FR_OK || bytesRead == 0) break;
+
+			res = f_write(&dstFile, buffer, bytesRead, &bytesWritten);
+			LogMessage(LOG_INFO_LVL, "copying...\r\n");
+
+			if (res != FR_OK || bytesWritten != bytesRead) break;
+			
+		} while (bytesRead > 0);
+
+		f_close(&srcFile);
+		f_close(&dstFile);
+
+		if (res == FR_OK) {
+			LogMessage(LOG_INFO_LVL, "g_application.bin created successfully.\r\n");
+		}
+		else {
+			LogMessage(LOG_INFO_LVL, "Copy failed (%d)\r\n", res);
+		}
+	}
+	
+	vTaskResume(fingerTaskHandle);
+	vTaskResume(IMUTaskHandle);
+}
+
+/**
+ * \brief Configure MQTT service.
+ */
+static void configure_mqtt(void)
+{
+    struct mqtt_config mqtt_conf;
+    int result;
+
+    mqtt_get_config_defaults(&mqtt_conf);
+    /* To use the MQTT service, it is necessary to always set the buffer and the timer. */
+    mqtt_conf.read_buffer = mqtt_read_buffer;
+    mqtt_conf.read_buffer_size = MAIN_MQTT_BUFFER_SIZE;
+    mqtt_conf.send_buffer = mqtt_send_buffer;
+    mqtt_conf.send_buffer_size = MAIN_MQTT_BUFFER_SIZE;
+    mqtt_conf.port = CLOUDMQTT_PORT;
+    mqtt_conf.keep_alive = 6000;
+
+    result = mqtt_init(&mqtt_inst, &mqtt_conf);
+    if (result < 0) {
+        LogMessage(LOG_DEBUG_LVL, "MQTT initialization failed. Error code is (%d)\r\n", result);
+        while (1) {
+        }
+    }
+
+    result = mqtt_register_callback(&mqtt_inst, mqtt_callback);
+    if (result < 0) {
+        LogMessage(LOG_DEBUG_LVL, "MQTT register callback failed. Error code is (%d)\r\n", result);
+        while (1) {
+        }
+    }
+}
+
+/**
+ static void HTTP_DownloadFileInit(void)
+ * @brief	Routine to initialize HTTP download of the OTAU file
+ * @note
+*/
+static void HTTP_DownloadFileInit(void)
+{
+    if (mqtt_disconnect(&mqtt_inst, main_mqtt_broker)) {
+        LogMessage(LOG_DEBUG_LVL, "Error connecting to MQTT Broker!\r\n");
+    }
+	
+    while ((mqtt_inst.isConnected)) {
+        m2m_wifi_handle_events(NULL);
+    }
+    socketDeinit();
+	
+    // DOWNLOAD A FILE
+    do_download_flag = true;
+    
+	/* Register socket callback function. */
+    registerSocketCallback(socket_cb, resolve_cb);
+    
+	/* Initialize socket module. */
+    socketInit();
+
+    start_download();
+    wifiStateMachine = WIFI_DOWNLOAD_HANDLE;
+}
+
+/**
+ static void HTTP_DownloadFileTransaction(void)
+ * @brief	Routine to handle the HTTP transaction of downloading a file
+ * @note
+*/
+static void HTTP_DownloadFileTransaction(void)
+{
+    /* Connect to router. */
+    while (!(is_state_set(COMPLETED) || is_state_set(CANCELED))) {
+        /* Handle pending events from network controller. */
+        m2m_wifi_handle_events(NULL);
+        /* Checks the timer timeout. */
+        sw_timer_task(&swt_module_inst);
+        vTaskDelay(5);
+    }
+
+    // Disable socket for HTTP Transfer
+    socketDeinit();
+    vTaskDelay(1000);
+    // CONNECT TO MQTT BROKER
+    do_download_flag = false;
+
+    // Write Flag
+    char test_file_name[] = "0:FlagA.txt";
+    test_file_name[0] = LUN_ID_SD_MMC_0_MEM + '0';
+    FRESULT res = f_open(&file_object, (char const *)test_file_name, FA_CREATE_ALWAYS | FA_WRITE);
+
+    if (res != FR_OK) {
+        LogMessage(LOG_INFO_LVL, "[FAIL] res %d\r\n", res);
+    } else {
+        SerialConsoleWriteString("FlagA.txt added!\r\n");
+		should_reset = true;
+    }
+
+    f_close(&file_object);
+	
+    wifiStateMachine = WIFI_MQTT_INIT;
+}
+
+/**
+ static void MQTT_InitRoutine(void)
+ * @brief	Routine to initialize the MQTT socket to prepare for MQTT transactions
+ * @note
+
+*/
+static void MQTT_InitRoutine(void)
+{
+    socketDeinit();
+    configure_mqtt();
+    // Re-enable socket for MQTT Transfer
+    registerSocketCallback(socket_event_handler, socket_resolve_handler);
+    socketInit();
+    /* Connect to router. */
+    if (!(mqtt_inst.isConnected)) {
+        if (mqtt_connect(&mqtt_inst, main_mqtt_broker)) {
+            LogMessage(LOG_DEBUG_LVL, "Error connecting to MQTT Broker!\r\n");
+        }
+    }
+
+    if (mqtt_inst.isConnected) {
+        LogMessage(LOG_DEBUG_LVL, "Connected to MQTT Broker!\r\n");
+    }
+    wifiStateMachine = WIFI_MQTT_HANDLE;
+}
+
+/**
+ static void MQTT_HandleTransactions(void)
+ * @brief	Routine to handle MQTT transactions
+ * @note
+*/
+static void MQTT_HandleTransactions(void)
+{
+    /* Handle pending events from network controller. */
+    m2m_wifi_handle_events(NULL);
+    sw_timer_task(&swt_module_inst);
+
+    // Handle MQTT messages
+    if (mqtt_inst.isConnected) mqtt_yield(&mqtt_inst, 100);
+}
+
+static void MQTT_HandleButtonMessages(void)
+{
+	static bool last_state = false;
+	bool sw0_pressed = port_pin_get_input_level(BUTTON_0_PIN) == false;
+
+	if (sw0_pressed != last_state)
+	{
+		last_state = sw0_pressed;
+		const char *payload = sw0_pressed ? "true" : "false";
+		mqtt_publish(&mqtt_inst, "a10g/ui/debug_led", payload, strlen(payload), 2, 0);
+		LogMessage(LOG_DEBUG_LVL, "Sent button state: %s\r\n", payload);
+	}
+}
+
+/******************************************************************************
+ * Global Functions
+ ******************************************************************************/
+void reset_cloud_permissions(void)
+{
+	add_permission_status = 0;
+	delete_permission_status = 0;
+}
+
+// add/delete fingerprint
+int cloud_request_add(uint8_t finger_id) {
+	char payload[64];
+	//snprintf(payload, sizeof(payload), "{\"request\":\"add\",\"finger_id\":%d}", finger_id);
+	snprintf(payload, sizeof(payload), "{\"request\":\"add\",\"finger_id\":%d}", finger_id);
+
+	int retries = 3;
+	int result = FAILURE;
+
+	while (retries--) {
+		SerialConsoleWriteString("[Debug] Trying to publish ADD request...\r\n");
+
+		
+		TickType_t start_tick = xTaskGetTickCount();
+		TickType_t timeout_tick = pdMS_TO_TICKS(2000);
+
+		result = mqtt_publish(&mqtt_inst, "a10g/library/fingerprint", payload, strlen(payload), 2, 0);
+
+		
+		if ((xTaskGetTickCount() - start_tick) > timeout_tick) {
+			SerialConsoleWriteString("[Error] Publish ADD request timeout!\r\n");
+			result = FAILURE;
+		}
+
+		if (result == SUCCESS) {
+			SerialConsoleWriteString("Sent ADD request to cloud.\r\n");
+			break;
+		}
+		else {
+			SerialConsoleWriteString("[Error] Publish failed, retrying...\r\n");
+			vTaskDelay(pdMS_TO_TICKS(500));
+		}
+		
+	}
+
+	if (result != SUCCESS) {
+		SerialConsoleWriteString("[Error] Failed to send ADD request after retries.\r\n");
+	}
+
+	return result;
+}
+
+int cloud_request_delete(uint8_t finger_id) {
+	char payload[64];
+	snprintf(payload, sizeof(payload), "{\"request\":\"delete\",\"finger_id\":%d}", finger_id);
+
+	int retries = 3;
+	int result = FAILURE;
+
+	while (retries--) {
+		SerialConsoleWriteString("[Debug] Trying to publish DELETE request...\r\n");
+
+		
+		TickType_t start_tick = xTaskGetTickCount();
+		TickType_t timeout_tick = pdMS_TO_TICKS(2000);
+
+
+		result = mqtt_publish(&mqtt_inst, "a10g/library/fingerprint", payload, strlen(payload), 1, 0);
+
+		
+		if ((xTaskGetTickCount() - start_tick) > timeout_tick) {
+			SerialConsoleWriteString("[Error] Publish DELETE request timeout!\r\n");
+			result = FAILURE;
+		}
+
+		if (result == SUCCESS) {
+			SerialConsoleWriteString("Sent DELETE request to cloud.\r\n");
+			break;
+			} else {
+			SerialConsoleWriteString("[Error] Publish failed, retrying...\r\n");
+			vTaskDelay(pdMS_TO_TICKS(500));
+		}
+	}
+
+	if (result != SUCCESS) {
+		SerialConsoleWriteString("[Error] Failed to send DELETE request after retries.\r\n");
+	}
+
+	return result;
+}
+
+// send ID to cloud when unlock the door
+void cloud_send_finger_ID(uint8_t finger_id) {
+	char payload[64];
+	snprintf(payload, sizeof(payload), "{\"finger_id\":%d}", finger_id);
+	mqtt_publish(&mqtt_inst, "a10g/alert/duress", payload, strlen(payload), 2, 0);
+}
+
+void WifiHandlerSetState(uint8_t state)
+{
+	if (state <= WIFI_DOWNLOAD_HANDLE) {
+		xQueueSend(xQueueWifiState, &state, (TickType_t)10);
+	}
+}
+
+bool cloud_add_permission_granted(void)
+{
+	return (add_permission_status == 1);
+}
+
+bool cloud_add_permission_denied(void)
+{
+	return (add_permission_status == -1);
+}
+
+bool cloud_delete_permission_granted(void)
+{
+	return (delete_permission_status == 1);
+}
+
+bool cloud_delete_permission_denied(void)
+{
+	return (delete_permission_status == -1);
+}
+
+/******************************************************************************
+ * Callback Functions
+ ******************************************************************************/
+/**
+ * \brief Callback to get the MQTT status update.
+ *
+ * \param[in] conn_id instance id of connection which is being used.
+ * \param[in] type type of MQTT notification. Possible types are:
+ *  - [MQTT_CALLBACK_SOCK_CONNECTED](@ref MQTT_CALLBACK_SOCK_CONNECTED)
+ *  - [MQTT_CALLBACK_CONNECTED](@ref MQTT_CALLBACK_CONNECTED)
+ *  - [MQTT_CALLBACK_PUBLISHED](@ref MQTT_CALLBACK_PUBLISHED)
+ *  - [MQTT_CALLBACK_SUBSCRIBED](@ref MQTT_CALLBACK_SUBSCRIBED)
+ *  - [MQTT_CALLBACK_UNSUBSCRIBED](@ref MQTT_CALLBACK_UNSUBSCRIBED)
+ *  - [MQTT_CALLBACK_DISCONNECTED](@ref MQTT_CALLBACK_DISCONNECTED)
+ *  - [MQTT_CALLBACK_RECV_PUBLISH](@ref MQTT_CALLBACK_RECV_PUBLISH)
+ * \param[in] data A structure contains notification informations. @ref mqtt_data
+ */
+static void mqtt_callback(struct mqtt_module *module_inst, int type, union mqtt_data *data)
+{
+    switch (type) {
+        case MQTT_CALLBACK_SOCK_CONNECTED: {
+            /*
+             * If connecting to broker server is complete successfully, Start sending CONNECT message of MQTT.
+             * Or else retry to connect to broker server.
+             */
+            if (data->sock_connected.result >= 0) {
+                LogMessage(LOG_DEBUG_LVL, "\r\nConnecting to Broker...");
+                if (0 != mqtt_connect_broker(module_inst, 1, CLOUDMQTT_USER_ID, CLOUDMQTT_USER_PASSWORD, CLOUDMQTT_USER_ID, NULL, NULL, 0, 0, 0)) {
+                    LogMessage(LOG_DEBUG_LVL, "MQTT  Error - NOT Connected to broker\r\n");
+                } else {
+                    LogMessage(LOG_DEBUG_LVL, "MQTT Connected to broker\r\n");
+                }
+            } else {
+                LogMessage(LOG_DEBUG_LVL, "Connect fail to server(%s)! retry it automatically.\r\n", main_mqtt_broker);
+                mqtt_connect(module_inst, main_mqtt_broker); /* Retry that. */
+            }
+        } break;
+
+        case MQTT_CALLBACK_CONNECTED:
+            if (data->connected.result == MQTT_CONN_RESULT_ACCEPT) {
+				
+                /* Subscribe chat topic. */			
+				mqtt_subscribe(module_inst, "a10g/fingerprint/cmd", 1, SubscribeHandlerFingerprintResponse);
+				
+				mqtt_subscribe(module_inst, "remote/unlock", 2, MQTT_UnlockHandler);
+				mqtt_subscribe(module_inst, "remote/fw", 2, MQTT_FWResponse);
+				mqtt_subscribe(module_inst, "remote/gold", 2, MQTT_GoldResponse);
+
+                /* Enable USART receiving callback. */
+                LogMessage(LOG_DEBUG_LVL, "MQTT Connected\r\n");
+				 mqtt_connected = true;
+            } else {
+                /* Cannot connect for some reason. */
+                LogMessage(LOG_DEBUG_LVL, "MQTT broker decline your access! error code %d\r\n", data->connected.result);
+            }
+
+            break;
+
+        case MQTT_CALLBACK_DISCONNECTED:
+            /* Stop timer and USART callback. */
+            LogMessage(LOG_DEBUG_LVL, "MQTT disconnected\r\n");
+            // usart_disable_callback(&cdc_uart_module, USART_CALLBACK_BUFFER_RECEIVED);
+            break;
     }
 }
 
@@ -492,110 +1072,6 @@ static void wifi_cb(uint8_t u8MsgType, void *pvMsg)
 }
 
 /**
- * \brief Initialize SD/MMC storage.
- */
-void init_storage(void)
-{
-    FRESULT res;
-    Ctrl_status status;
-
-    /* Initialize SD/MMC stack. */
-    sd_mmc_init();
-    while (true) {
-        LogMessage(LOG_DEBUG_LVL, "init_storage: please plug an SD/MMC card in slot...\r\n");
-
-        /* Wait card present and ready. */
-        do {
-            status = sd_mmc_test_unit_ready(0);
-            if (CTRL_FAIL == status) {
-                LogMessage(LOG_DEBUG_LVL, "init_storage: SD Card install failed.\r\n");
-                LogMessage(LOG_DEBUG_LVL, "init_storage: try unplug and re-plug the card.\r\n");
-                while (CTRL_NO_PRESENT != sd_mmc_check(0)) {
-                }
-            }
-        } while (CTRL_GOOD != status);
-
-        LogMessage(LOG_DEBUG_LVL, "init_storage: mounting SD card...\r\n");
-        memset(&fatfs, 0, sizeof(FATFS));
-        res = f_mount(LUN_ID_SD_MMC_0_MEM, &fatfs);
-        if (FR_INVALID_DRIVE == res) {
-            LogMessage(LOG_DEBUG_LVL, "init_storage: SD card mount failed! (res %d)\r\n", res);
-            return;
-        }
-
-        LogMessage(LOG_DEBUG_LVL, "init_storage: SD card mount OK.\r\n");
-        add_state(STORAGE_READY);
-        return;
-    }
-}
-
-/**
- * \brief Configure UART console.
- */
-/*static void configure_console(void)
-{
-
-        stdio_base = (void *)GetUsartModule();
-        ptr_put = (int (*)(void volatile*,char))&usart_serial_putchar;
-        ptr_get = (void (*)(void volatile*,char*))&usart_serial_getchar;
-
-
-        # if defined(__GNUC__)
-        // Specify that stdout and stdin should not be buffered.
-        setbuf(stdout, NULL);
-        setbuf(stdin, NULL);
-        // Note: Already the case in IAR's Normal DLIB default configuration
-        // and AVR GCC library:
-        // - printf() emits one character at a time.
-        // - getchar() requests only 1 byte to exit.
-        #  endif
-        //stdio_serial_init(GetUsartModule(), EDBG_CDC_MODULE, &usart_conf);
-        //usart_enable(&cdc_uart_module);
-}*/
-
-/**
- * \brief Configure Timer module.
- */
-static void configure_timer(void)
-{
-    struct sw_timer_config swt_conf;
-    sw_timer_get_config_defaults(&swt_conf);
-
-    sw_timer_init(&swt_module_inst, &swt_conf);
-    sw_timer_enable(&swt_module_inst);
-}
-
-/**
- * \brief Configure HTTP client module.
- */
-static void configure_http_client(void)
-{
-    struct http_client_config httpc_conf;
-    int ret;
-
-    http_client_get_config_defaults(&httpc_conf);
-
-    httpc_conf.recv_buffer_size = MAIN_BUFFER_MAX_SIZE;
-    httpc_conf.timer_inst = &swt_module_inst;
-    //httpc_conf.port = 443;
-    //httpc_conf.tls = 1;
-
-    ret = http_client_init(&http_client_module_inst, &httpc_conf);
-    if (ret < 0) {
-        LogMessage(LOG_DEBUG_LVL, "configure_http_client: HTTP client initialization failed! (res %d)\r\n", ret);
-        while (1) {
-        } /* Loop forever. */
-    }
-
-    http_client_register_callback(&http_client_module_inst, http_client_callback);
-}
-
-/*MQTT RELATED STATIC FUNCTIONS*/
-
-/** Prototype for MQTT subscribe Callback */
-void SubscribeHandler(MessageData *msgData);
-
-/**
  * \brief Callback to get the Socket event.
  *
  * \param[in] Socket descriptor.
@@ -627,706 +1103,6 @@ static void socket_resolve_handler(uint8_t *doamin_name, uint32_t server_ip)
 }
 
 /**
- * \brief Callback to receive the subscribed Message.
- *
- * \param[in] msgData Data to be received.
- */
-
-void SubscribeHandlerLedTopic(MessageData *msgData)
-{
-    uint8_t rgb[3] = {0, 0, 0};
-    LogMessage(LOG_DEBUG_LVL, "\r\n %.*s", msgData->topicName->lenstring.len, msgData->topicName->lenstring.data);
-    // Will receive something of the style "rgb(222, 224, 189)"
-    if (strncmp(msgData->message->payload, "rgb(", 4) == 0) {
-        char *p = (char *)&msgData->message->payload[4];
-        int nb = 0;
-        while (nb <= 2 && *p) {
-            rgb[nb++] = strtol(p, &p, 10);
-            if (*p != ',') break;
-            p++; /* skip, */
-        }
-        LogMessage(LOG_DEBUG_LVL, "\r\nRGB %d %d %d\r\n", rgb[0], rgb[1], rgb[2]);
-    }
-}
-
-void SubscribeHandlerBoolLed(MessageData *msgData)
-{
-	if (strncmp(msgData->message->payload, "true", 4) == 0) {
-		// turn LED on
-		port_pin_set_output_level(LED_0_PIN, LED_0_ACTIVE);  
-		LogMessage(LOG_DEBUG_LVL, "LED turned ON\r\n");
-	}
-	else {
-		// turn LED off
-		port_pin_set_output_level(LED_0_PIN, !LED_0_ACTIVE);
-		LogMessage(LOG_DEBUG_LVL, "LED turned OFF\r\n");
-	}
-}
-
-void SubscribeHandlerGameTopic(MessageData *msgData)
-{
-    struct GameDataPacket game;
-    memset(game.game, 0xff, sizeof(game.game));
-
-    // Parse input. The start string must be '{"game":['
-    if (strncmp(msgData->message->payload, "{\"game\":[", 9) == 0) {
-        LogMessage(LOG_DEBUG_LVL, "\r\nGame message received!\r\n");
-        LogMessage(LOG_DEBUG_LVL, "\r\n %.*s", msgData->topicName->lenstring.len, msgData->topicName->lenstring.data);
-        LogMessage(LOG_DEBUG_LVL, "%.*s", msgData->message->payloadlen, (char *)msgData->message->payload);
-
-        int nb = 0;
-        char *p = &msgData->message->payload[9];
-        while (nb < GAME_SIZE && *p) {
-            game.game[nb++] = strtol(p, &p, 10);
-            if (*p != ',') break;
-            p++; /* skip, */
-        }
-        LogMessage(LOG_DEBUG_LVL, "\r\nParsed Command: ");
-        for (int i = 0; i < GAME_SIZE; i++) {
-            LogMessage(LOG_DEBUG_LVL, "%d,", game.game[i]);
-        }
-
-    } else {
-        LogMessage(LOG_DEBUG_LVL, "\r\nGame message received but not understood!\r\n");
-        LogMessage(LOG_DEBUG_LVL, "\r\n %.*s", msgData->topicName->lenstring.len, msgData->topicName->lenstring.data);
-        LogMessage(LOG_DEBUG_LVL, "%.*s", msgData->message->payloadlen, (char *)msgData->message->payload);
-    }
-}
-
-void SubscribeHandlerImuTopic(MessageData *msgData)
-{
-    LogMessage(LOG_DEBUG_LVL, "\r\nIMU topic received!\r\n");
-    LogMessage(LOG_DEBUG_LVL, "\r\n %.*s", msgData->topicName->lenstring.len, msgData->topicName->lenstring.data);
-}
-
-void SubscribeHandlerDistanceTopic(MessageData *msgData)
-{
-    LogMessage(LOG_DEBUG_LVL, "\r\nDistance topic received!\r\n");
-    LogMessage(LOG_DEBUG_LVL, "\r\n %.*s", msgData->topicName->lenstring.len, msgData->topicName->lenstring.data);
-}
-
-void SubscribeHandler(MessageData *msgData)
-{
-    /* You received publish message which you had subscribed. */
-    /* Print Topic and message */
-    LogMessage(LOG_DEBUG_LVL, "\r\n %.*s", msgData->topicName->lenstring.len, msgData->topicName->lenstring.data);
-    LogMessage(LOG_DEBUG_LVL, " >> ");
-    LogMessage(LOG_DEBUG_LVL, "%.*s", msgData->message->payloadlen, (char *)msgData->message->payload);
-
-    // Handle LedData message
-    if (strncmp((char *)msgData->topicName->lenstring.data, LED_TOPIC, msgData->message->payloadlen) == 0) {
-        if (strncmp((char *)msgData->message->payload, LED_TOPIC_LED_OFF, msgData->message->payloadlen) == 0) {
-            port_pin_set_output_level(LED_0_PIN, LED_0_INACTIVE);
-        } else if (strncmp((char *)msgData->message->payload, LED_TOPIC_LED_ON, msgData->message->payloadlen) == 0) {
-            port_pin_set_output_level(LED_0_PIN, LED_0_ACTIVE);
-        }
-    }
-}
-
-/***************************************************************************************************************/
-//For add/delete fingerprint
-
-volatile bool allow_add = false;
-volatile bool allow_delete = false;
-
-volatile int add_permission_status = 0;
-volatile int delete_permission_status = 0;
-
-void SubscribeHandlerFingerprintResponse(MessageData *msgData)
-{
-	char payload[128] = {0};
-	size_t len = msgData->message->payloadlen;
-
-	// ????????? '\0' ??
-	if (len >= sizeof(payload)) {
-		len = sizeof(payload) - 1;
-	}
-	memcpy(payload, msgData->message->payload, len);
-	payload[len] = '\0';
-
-	SerialConsoleWriteString("Received MQTT from cloud: ");
-	SerialConsoleWriteString(payload);
-	SerialConsoleWriteString("\r\n");
-
-	// ? ????? result ?????
-	if (!strstr(payload, "\"result\"")) {
-		SerialConsoleWriteString("Ignored non-response message.\r\n");
-		return;
-	}
-
-	// === ADD ===
-	if (strstr(payload, "\"action\":\"add\"")) {
-		if (strstr(payload, "\"result\":\"allow\"")) {
-			add_permission_status = 1;
-			SerialConsoleWriteString("Cloud allowed ADD.\r\n");
-		}
-		else if (strstr(payload, "\"result\":\"deny\"")) {
-			add_permission_status = -1;
-			SerialConsoleWriteString("Cloud denied ADD.\r\n");
-		}
-	}
-
-	// === DELETE ===
-	if (strstr(payload, "\"action\":\"delete\"")) {
-		if (strstr(payload, "\"result\":\"allow\"")) {
-			delete_permission_status = 1;
-			SerialConsoleWriteString("Cloud allowed DELETE.\r\n");
-		}
-		else if (strstr(payload, "\"result\":\"deny\"")) {
-			delete_permission_status = -1;
-			SerialConsoleWriteString("Cloud denied DELETE.\r\n");
-		}
-	}
-}
-
-bool cloud_add_permission_granted(void)
-{
-	return (add_permission_status == 1);
-}
-
-bool cloud_add_permission_denied(void)
-{
-	return (add_permission_status == -1);
-}
-
-bool cloud_delete_permission_granted(void)
-{
-	return (delete_permission_status == 1);
-}
-
-bool cloud_delete_permission_denied(void)
-{
-	return (delete_permission_status == -1);
-}
-
-void reset_cloud_permissions(void)
-{
-	add_permission_status = 0;
-	delete_permission_status = 0;
-}
-
-/**************************************************************************************************************/
-//remote open the door
-void MQTT_UnlockHandler(MessageData *md)
-{
-	SerialConsoleWriteString("Enter MQTT_UnlockHandler\r\n");
-	MQTTMessage* message = md->message;
-	MQTTString* topicName = md->topicName;
-
-	char payload[64] = {0};
-	memcpy(payload, message->payload, message->payloadlen);
-	payload[message->payloadlen] = '\0';
-
-	SerialConsoleWriteString("Topic: ");
-	SerialConsoleWriteString(topicName->lenstring.data);
-	SerialConsoleWriteString("\r\nPayload: ");
-	SerialConsoleWriteString(payload);
-	SerialConsoleWriteString("\r\n");
-
-	if (strstr(payload, "\"action\":\"unlock\"") != NULL) {
-		SerialConsoleWriteString("Action matched: UNLOCK\r\n");
-		//servo motor
-		
-		pwm_set_servo_angle_unlock_door();
-		vTaskDelay(pdMS_TO_TICKS(30000));
-
-		pwm_set_servo_angle_lock_door();
-
-		SerialConsoleWriteString("Servo set.\r\n");
-		
-		port_pin_set_output_level(LED_0_PIN, LED_0_ACTIVE);	
-
-	}
-}
-
-
-//OTA - FW
-extern TaskHandle_t fingerTaskHandle;
-extern TaskHandle_t IMUTaskHandle;
-void MQTT_FWResponse(MessageData *md)
-{
-	vTaskSuspend(fingerTaskHandle);
-	vTaskSuspend(IMUTaskHandle);
-	
-	SerialConsoleWriteString("Enter CLI_FW\r\n");
-	MQTTMessage* message = md->message;
-	MQTTString* topicName = md->topicName;
-
-	char payload[64] = {0};
-	memcpy(payload, message->payload, message->payloadlen);
-	payload[message->payloadlen] = '\0';
-
-	SerialConsoleWriteString("Topic: ");
-	SerialConsoleWriteString(topicName->lenstring.data);
-	SerialConsoleWriteString("\r\nPayload: ");
-	SerialConsoleWriteString(payload);
-	SerialConsoleWriteString("\r\n");
-
-	if (strstr(payload, "\"action\":\"fw\"") != NULL) {
-		WifiHandlerSetState(WIFI_DOWNLOAD_INIT);	
-		port_pin_set_output_level(LED_0_PIN, LED_0_ACTIVE);
-	}
-	
-	vTaskResume(fingerTaskHandle);
-	vTaskResume(IMUTaskHandle);
-}
-
-
-// gold image
-void MQTT_GoldResponse(MessageData *md)
-{
-	vTaskSuspend(fingerTaskHandle);
-	vTaskSuspend(IMUTaskHandle);
-	
-	SerialConsoleWriteString("Enter CLI_GOLD\r\n");
-	MQTTMessage* message = md->message;
-	MQTTString* topicName = md->topicName;
-
-	char payload[64] = {0};
-	memcpy(payload, message->payload, message->payloadlen);
-	payload[message->payloadlen] = '\0';
-
-	SerialConsoleWriteString("Topic: ");
-	SerialConsoleWriteString(topicName->lenstring.data);
-	SerialConsoleWriteString("\r\nPayload: ");
-	SerialConsoleWriteString(payload);
-	SerialConsoleWriteString("\r\n");
-
-	if (strstr(payload, "\"action\":\"gold\"") != NULL) {
-		FIL srcFile, dstFile;
-		FRESULT res;
-		UINT bytesRead, bytesWritten;
-		uint8_t buffer[256];  //avoid stack overflow 512(x)
-		
-		res = f_open(&srcFile, "0:Application.bin", FA_READ);
-		if (res != FR_OK) {
-			LogMessage(LOG_INFO_LVL, "Failed to open Application.bin (%d)\r\n", res);
-			return pdFALSE;
-		}
-
-		res = f_open(&dstFile, "0:g_application.bin", FA_WRITE | FA_CREATE_ALWAYS);
-		if (res != FR_OK) {
-			f_close(&srcFile);
-			LogMessage(LOG_INFO_LVL, "Failed to create g_application.bin (%d)\r\n", res);
-			return pdFALSE;
-		}
-
-		do {
-			res = f_read(&srcFile, buffer, sizeof(buffer), &bytesRead);
-			if (res != FR_OK || bytesRead == 0) break;
-
-			res = f_write(&dstFile, buffer, bytesRead, &bytesWritten);
-			LogMessage(LOG_INFO_LVL, "copying...\r\n");
-
-			if (res != FR_OK || bytesWritten != bytesRead) break;
-				
-		} while (bytesRead > 0);
-
-		f_close(&srcFile);
-		f_close(&dstFile);
-
-		if (res == FR_OK) {
-			LogMessage(LOG_INFO_LVL, "g_application.bin created successfully.\r\n");
-		} 
-		else {
-			LogMessage(LOG_INFO_LVL, "Copy failed (%d)\r\n", res);
-		}
-	}
-	
-	vTaskResume(fingerTaskHandle);
-	vTaskResume(IMUTaskHandle);
-}
-
-/**************************************************************************************************************/
-
-/**
- * \brief Callback to get the MQTT status update.
- *
- * \param[in] conn_id instance id of connection which is being used.
- * \param[in] type type of MQTT notification. Possible types are:
- *  - [MQTT_CALLBACK_SOCK_CONNECTED](@ref MQTT_CALLBACK_SOCK_CONNECTED)
- *  - [MQTT_CALLBACK_CONNECTED](@ref MQTT_CALLBACK_CONNECTED)
- *  - [MQTT_CALLBACK_PUBLISHED](@ref MQTT_CALLBACK_PUBLISHED)
- *  - [MQTT_CALLBACK_SUBSCRIBED](@ref MQTT_CALLBACK_SUBSCRIBED)
- *  - [MQTT_CALLBACK_UNSUBSCRIBED](@ref MQTT_CALLBACK_UNSUBSCRIBED)
- *  - [MQTT_CALLBACK_DISCONNECTED](@ref MQTT_CALLBACK_DISCONNECTED)
- *  - [MQTT_CALLBACK_RECV_PUBLISH](@ref MQTT_CALLBACK_RECV_PUBLISH)
- * \param[in] data A structure contains notification informations. @ref mqtt_data
- */
-volatile bool mqtt_connected = false;
-static void mqtt_callback(struct mqtt_module *module_inst, int type, union mqtt_data *data)
-{
-    switch (type) {
-        case MQTT_CALLBACK_SOCK_CONNECTED: {
-            /*
-             * If connecting to broker server is complete successfully, Start sending CONNECT message of MQTT.
-             * Or else retry to connect to broker server.
-             */
-            if (data->sock_connected.result >= 0) {
-                LogMessage(LOG_DEBUG_LVL, "\r\nConnecting to Broker...");
-                if (0 != mqtt_connect_broker(module_inst, 1, CLOUDMQTT_USER_ID, CLOUDMQTT_USER_PASSWORD, CLOUDMQTT_USER_ID, NULL, NULL, 0, 0, 0)) {
-                    LogMessage(LOG_DEBUG_LVL, "MQTT  Error - NOT Connected to broker\r\n");
-                } else {
-                    LogMessage(LOG_DEBUG_LVL, "MQTT Connected to broker\r\n");
-                }
-            } else {
-                LogMessage(LOG_DEBUG_LVL, "Connect fail to server(%s)! retry it automatically.\r\n", main_mqtt_broker);
-                mqtt_connect(module_inst, main_mqtt_broker); /* Retry that. */
-            }
-        } break;
-
-        case MQTT_CALLBACK_CONNECTED:
-            if (data->connected.result == MQTT_CONN_RESULT_ACCEPT) {
-                /* Subscribe chat topic. */
-                //mqtt_subscribe(module_inst, GAME_TOPIC_IN, 2, SubscribeHandlerGameTopic);
-                //mqtt_subscribe(module_inst, LED_TOPIC, 2, SubscribeHandlerLedTopic);
-                //mqtt_subscribe(module_inst, IMU_TOPIC, 2, SubscribeHandlerImuTopic);
-				
-				mqtt_subscribe(module_inst, "a10g/debug/led", 2, SubscribeHandlerBoolLed);
-				
-				mqtt_subscribe(module_inst, "a10g/fingerprint/cmd", 2, SubscribeHandlerFingerprintResponse);
-				
-				mqtt_subscribe(module_inst, "remote/unlock", 2, MQTT_UnlockHandler);
-				mqtt_subscribe(module_inst, "remote/fw", 2, MQTT_FWResponse);
-				mqtt_subscribe(module_inst, "remote/gold", 2, MQTT_GoldResponse);
-				
-
-				
-
-                /* Enable USART receiving callback. */
-                LogMessage(LOG_DEBUG_LVL, "MQTT Connected\r\n");
-				 mqtt_connected = true;
-            } else {
-                /* Cannot connect for some reason. */
-                LogMessage(LOG_DEBUG_LVL, "MQTT broker decline your access! error code %d\r\n", data->connected.result);
-            }
-
-            break;
-
-        case MQTT_CALLBACK_DISCONNECTED:
-            /* Stop timer and USART callback. */
-            LogMessage(LOG_DEBUG_LVL, "MQTT disconnected\r\n");
-            // usart_disable_callback(&cdc_uart_module, USART_CALLBACK_BUFFER_RECEIVED);
-            break;
-    }
-}
-
-/**
- * \brief Configure MQTT service.
- */
-static void configure_mqtt(void)
-{
-    struct mqtt_config mqtt_conf;
-    int result;
-
-    mqtt_get_config_defaults(&mqtt_conf);
-    /* To use the MQTT service, it is necessary to always set the buffer and the timer. */
-    mqtt_conf.read_buffer = mqtt_read_buffer;
-    mqtt_conf.read_buffer_size = MAIN_MQTT_BUFFER_SIZE;
-    mqtt_conf.send_buffer = mqtt_send_buffer;
-    mqtt_conf.send_buffer_size = MAIN_MQTT_BUFFER_SIZE;
-    mqtt_conf.port = CLOUDMQTT_PORT;
-    mqtt_conf.keep_alive = 6000;
-
-    result = mqtt_init(&mqtt_inst, &mqtt_conf);
-    if (result < 0) {
-        LogMessage(LOG_DEBUG_LVL, "MQTT initialization failed. Error code is (%d)\r\n", result);
-        while (1) {
-        }
-    }
-
-    result = mqtt_register_callback(&mqtt_inst, mqtt_callback);
-    if (result < 0) {
-        LogMessage(LOG_DEBUG_LVL, "MQTT register callback failed. Error code is (%d)\r\n", result);
-        while (1) {
-        }
-    }
-}
-
-// SETUP FOR EXTERNAL BUTTON INTERRUPT -- Used to send an MQTT Message
-
-void configure_extint_channel(void)
-{
-    struct extint_chan_conf config_extint_chan;
-    extint_chan_get_config_defaults(&config_extint_chan);
-    config_extint_chan.gpio_pin = BUTTON_0_EIC_PIN;
-    config_extint_chan.gpio_pin_mux = BUTTON_0_EIC_MUX;
-    config_extint_chan.gpio_pin_pull = EXTINT_PULL_UP;
-    config_extint_chan.detection_criteria = EXTINT_DETECT_FALLING;
-    extint_chan_set_config(BUTTON_0_EIC_LINE, &config_extint_chan);
-}
-
-void extint_detection_callback(void);
-void configure_extint_callbacks(void)
-{
-    extint_register_callback(extint_detection_callback, BUTTON_0_EIC_LINE, EXTINT_CALLBACK_TYPE_DETECT);
-    extint_chan_enable_callback(BUTTON_0_EIC_LINE, EXTINT_CALLBACK_TYPE_DETECT);
-}
-
-volatile bool isPressed = false;
-void extint_detection_callback(void)
-{
-    // Publish some data after a button press and release. Note: just an example! This is not the most elegant way of doing this!
-    temperature++;
-    if (temperature > 40) temperature = 1;
-    snprintf(mqtt_msg_temp, 63, "{\"d\":{\"temp\":%d}}", temperature);
-    isPressed = true;
-    // Published in the Wifi thread main loop
-}
-
-/**
- static void HTTP_DownloadFileInit(void)
- * @brief	Routine to initialize HTTP download of the OTAU file
- * @note
-
-*/
-static void HTTP_DownloadFileInit(void)
-{
-    if (mqtt_disconnect(&mqtt_inst, main_mqtt_broker)) {
-        LogMessage(LOG_DEBUG_LVL, "Error connecting to MQTT Broker!\r\n");
-    }
-    while ((mqtt_inst.isConnected)) {
-        m2m_wifi_handle_events(NULL);
-    }
-    socketDeinit();
-    // DOWNLOAD A FILE
-    do_download_flag = true;
-    /* Register socket callback function. */
-    registerSocketCallback(socket_cb, resolve_cb);
-    /* Initialize socket module. */
-    socketInit();
-
-    start_download();
-    wifiStateMachine = WIFI_DOWNLOAD_HANDLE;
-}
-
-/**
- static void HTTP_DownloadFileTransaction(void)
- * @brief	Routine to handle the HTTP transaction of downloading a file
- * @note
-
-*/
-static void HTTP_DownloadFileTransaction(void)
-{
-    /* Connect to router. */
-    while (!(is_state_set(COMPLETED) || is_state_set(CANCELED))) {
-        /* Handle pending events from network controller. */
-        m2m_wifi_handle_events(NULL);
-        /* Checks the timer timeout. */
-        sw_timer_task(&swt_module_inst);
-        vTaskDelay(5);
-    }
-
-    // Disable socket for HTTP Transfer
-    socketDeinit();
-    vTaskDelay(1000);
-    // CONNECT TO MQTT BROKER
-    do_download_flag = false;
-
-    // Write Flag
-    char test_file_name[] = "0:FlagA.txt";
-    test_file_name[0] = LUN_ID_SD_MMC_0_MEM + '0';
-    FRESULT res = f_open(&file_object, (char const *)test_file_name, FA_CREATE_ALWAYS | FA_WRITE);
-
-    if (res != FR_OK) {
-        LogMessage(LOG_INFO_LVL, "[FAIL] res %d\r\n", res);
-    } else {
-        SerialConsoleWriteString("FlagA.txt added!\r\n");
-		should_reset = true;
-    }
-
-    f_close(&file_object);
-	
-    wifiStateMachine = WIFI_MQTT_INIT;
-}
-
-/**
- static void MQTT_InitRoutine(void)
- * @brief	Routine to initialize the MQTT socket to prepare for MQTT transactions
- * @note
-
-*/
-static void MQTT_InitRoutine(void)
-{
-    socketDeinit();
-    configure_mqtt();
-    // Re-enable socket for MQTT Transfer
-    registerSocketCallback(socket_event_handler, socket_resolve_handler);
-    socketInit();
-    /* Connect to router. */
-    if (!(mqtt_inst.isConnected)) {
-        if (mqtt_connect(&mqtt_inst, main_mqtt_broker)) {
-            LogMessage(LOG_DEBUG_LVL, "Error connecting to MQTT Broker!\r\n");
-        }
-    }
-
-    if (mqtt_inst.isConnected) {
-        LogMessage(LOG_DEBUG_LVL, "Connected to MQTT Broker!\r\n");
-    }
-    wifiStateMachine = WIFI_MQTT_HANDLE;
-}
-
-/**
- static void MQTT_HandleTransactions(void)
- * @brief	Routine to handle MQTT transactions
- * @note
-*/
-static void MQTT_HandleTransactions(void)
-{
-    /* Handle pending events from network controller. */
-    m2m_wifi_handle_events(NULL);
-    sw_timer_task(&swt_module_inst);
-
-    // Check if data has to be sent!
-    //MQTT_HandleGameMessages();
-    //MQTT_HandleImuMessages();
-	//MQTT_HandleButtonMessages();
-
-    // Handle MQTT messages
-    if (mqtt_inst.isConnected) mqtt_yield(&mqtt_inst, 100);
-}
-
-static void MQTT_HandleImuMessages(void)
-{
-    struct ImuDataPacket imuDataVar;
-    if (pdPASS == xQueueReceive(xQueueImuBuffer, &imuDataVar, 0)) {
-        snprintf(mqtt_msg, 63, "{\"imux\":%d, \"imuy\": %d, \"imuz\": %d}", imuDataVar.xmg, imuDataVar.ymg, imuDataVar.zmg);
-        mqtt_publish(&mqtt_inst, IMU_TOPIC, mqtt_msg, strlen(mqtt_msg), 1, 0);
-    }
-}
-
-static void MQTT_HandleGameMessages(void)
-{
-    struct GameDataPacket gamePacket;
-    if (pdPASS == xQueueReceive(xQueueGameBuffer, &gamePacket, 0)) {
-        snprintf(mqtt_msg, 63, "{\"game\":[");
-        for (int iter = 0; iter < GAME_SIZE; iter++) {
-            char numGame[5];
-            if (gamePacket.game[iter] != 0xFF) {
-                snprintf(numGame, 3, "%d", gamePacket.game[iter]);
-                strcat(mqtt_msg, numGame);
-                if (gamePacket.game[iter + 1] != 0xFF && iter + 1 < GAME_SIZE) {
-                    snprintf(numGame, 5, ",");
-                    strcat(mqtt_msg, numGame);
-                }
-            } else {
-                break;
-            }
-        }
-        strcat(mqtt_msg, "]}");
-        LogMessage(LOG_DEBUG_LVL, mqtt_msg);
-        LogMessage(LOG_DEBUG_LVL, "\r\n");
-        mqtt_publish(&mqtt_inst, GAME_TOPIC_OUT, mqtt_msg, strlen(mqtt_msg), 1, 0);
-    }
-}
-
-static void MQTT_HandleButtonMessages(void)
-{
-	static bool last_state = false;
-	bool sw0_pressed = port_pin_get_input_level(BUTTON_0_PIN) == false;
-
-	if (sw0_pressed != last_state)
-	{
-		last_state = sw0_pressed;
-		const char *payload = sw0_pressed ? "true" : "false";
-		mqtt_publish(&mqtt_inst, "a10g/ui/debug_led", payload, strlen(payload), 2, 0);
-		LogMessage(LOG_DEBUG_LVL, "Sent button state: %s\r\n", payload);
-	}
-}
-
-/*****************************************************************************************************/
-// add/delete fingerprint
-
-int cloud_request_add(uint8_t finger_id) {
-	char payload[64];
-	snprintf(payload, sizeof(payload), "{\"request\":\"add\",\"finger_id\":%d}", finger_id);
-
-	int retries = 3;
-	int result = FAILURE;
-
-	while (retries--) {
-		SerialConsoleWriteString("[Debug] Trying to publish ADD request...\r\n");
-
-		
-		TickType_t start_tick = xTaskGetTickCount();
-		TickType_t timeout_tick = pdMS_TO_TICKS(2000);
-
-		result = mqtt_publish(&mqtt_inst, "a10g/library/fingerprint", payload, strlen(payload), 2, 0);
-
-		
-		if ((xTaskGetTickCount() - start_tick) > timeout_tick) {
-			SerialConsoleWriteString("[Error] Publish ADD request timeout!\r\n");
-			result = FAILURE;
-		}
-
-		if (result == SUCCESS) {
-			SerialConsoleWriteString("Sent ADD request to cloud.\r\n");
-			break;
-		} 
-		else {
-			SerialConsoleWriteString("[Error] Publish failed, retrying...\r\n");
-			vTaskDelay(pdMS_TO_TICKS(500));
-		}
-		
-	}
-
-	if (result != SUCCESS) {
-		SerialConsoleWriteString("[Error] Failed to send ADD request after retries.\r\n");
-	}
-
-	return result;
-}
-
-int cloud_request_delete(uint8_t finger_id) {
-	char payload[64];
-	snprintf(payload, sizeof(payload), "{\"request\":\"delete\",\"finger_id\":%d}", finger_id);
-
-	int retries = 3;
-	int result = FAILURE;
-
-	while (retries--) {
-		SerialConsoleWriteString("[Debug] Trying to publish DELETE request...\r\n");
-
-		
-		TickType_t start_tick = xTaskGetTickCount();
-		TickType_t timeout_tick = pdMS_TO_TICKS(2000);
-
-		
-		result = mqtt_publish(&mqtt_inst, "a10g/library/fingerprint", payload, strlen(payload), 2, 0);
-
-		
-		if ((xTaskGetTickCount() - start_tick) > timeout_tick) {
-			SerialConsoleWriteString("[Error] Publish DELETE request timeout!\r\n");
-			result = FAILURE;
-		}
-
-		if (result == SUCCESS) {
-			SerialConsoleWriteString("Sent DELETE request to cloud.\r\n");
-			break;
-			} else {
-			SerialConsoleWriteString("[Error] Publish failed, retrying...\r\n");
-			vTaskDelay(pdMS_TO_TICKS(500));
-		}
-	}
-
-	if (result != SUCCESS) {
-		SerialConsoleWriteString("[Error] Failed to send DELETE request after retries.\r\n");
-	}
-
-	return result;
-}
-
-
-// send ID to cloud when unlock the door
-void cloud_send_finger_ID(uint8_t finger_id) {
-	char payload[64];
-	snprintf(payload, sizeof(payload), "{\"finger_id\":%d}", finger_id);
-	mqtt_publish(&mqtt_inst, "a10g/alert/duress", payload, strlen(payload), 2, 0);
-}
-
-/*****************************************************************************************************/
-
-/**
  * \brief Main application function.
  *
  * Application entry point.
@@ -1342,11 +1118,8 @@ void vWifiTask(void *pvParameters)
 	
     // Create buffers to send data
     xQueueWifiState = xQueueCreate(5, sizeof(uint32_t));
-    xQueueImuBuffer = xQueueCreate(5, sizeof(struct ImuDataPacket));
-    xQueueGameBuffer = xQueueCreate(2, sizeof(struct GameDataPacket));
-    xQueueDistanceBuffer = xQueueCreate(5, sizeof(uint16_t));
 
-    if (xQueueWifiState == NULL || xQueueImuBuffer == NULL || xQueueGameBuffer == NULL || xQueueDistanceBuffer == NULL) {
+    if (xQueueWifiState == NULL) {
         SerialConsoleWriteString("ERROR Initializing Wifi Data queues!\r\n");
     }
 
@@ -1364,10 +1137,6 @@ void vWifiTask(void *pvParameters)
     /* Initialize SD/MMC storage. */
     init_storage();
 	I2cInitializeDriver();
-
-    /*Initialize BUTTON 0 as an external interrupt*/
-    configure_extint_channel();
-    configure_extint_callbacks();
 
     /* Initialize Wi-Fi parameters structure. */
     memset((uint8_t *)&param, 0, sizeof(tstrWifiInitParam));
@@ -1435,14 +1204,7 @@ void vWifiTask(void *pvParameters)
         if (pdPASS == xQueueReceive(xQueueWifiState, &DataToReceive, 0)) {
             wifiStateMachine = DataToReceive;  // Update new state
         }
-
-        // Check if we need to publish something. In this example, we publish the "temperature" when the button was pressed.
-        if (isPressed) {
-            mqtt_publish(&mqtt_inst, TEMPERATURE_TOPIC, mqtt_msg_temp, strlen(mqtt_msg_temp), 1, 0);
-            LogMessage(LOG_DEBUG_LVL, "MQTT send %s\r\n", mqtt_msg_temp);
-            isPressed = false;
-        }
-		
+	
 		 if (should_reset) {
 			 SerialConsoleWriteString("Rebooting to bootloader...\r\n");
 			 vTaskDelay(1000);
@@ -1451,41 +1213,4 @@ void vWifiTask(void *pvParameters)
 
         vTaskDelay(pdMS_TO_TICKS(100));
     }
-}
-
-void WifiHandlerSetState(uint8_t state)
-{
-    if (state <= WIFI_DOWNLOAD_HANDLE) {
-        xQueueSend(xQueueWifiState, &state, (TickType_t)10);
-    }
-}
-
-/**
- void WifiAddImuDataToQueue(struct ImuDataPacket* imuPacket)
- * @brief	Adds an IMU struct to the queue to send via MQTT
- * @param[out]
-
- * @return		Returns pdTrue if data can be added to queue, pdFalse if queue is full
- * @note
-
-*/
-int WifiAddImuDataToQueue(struct ImuDataPacket *imuPacket)
-{
-    int error = xQueueSend(xQueueImuBuffer, imuPacket, (TickType_t)10);
-    return error;
-}
-
-/**
- void WifiAddImuDataToQueue(struct ImuDataPacket* imuPacket)
- * @brief	Adds an Distance data to the queue to send via MQTT
- * @param[out]
-
- * @return		Returns pdTrue if data can be added to queue, pdFalse if queue is full
- * @note
-
-*/
-int WifiAddDistanceDataToQueue(uint16_t *distance)
-{
-    int error = xQueueSend(xQueueDistanceBuffer, distance, (TickType_t)10);
-    return error;
 }

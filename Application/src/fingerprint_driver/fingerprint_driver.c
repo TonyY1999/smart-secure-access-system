@@ -287,9 +287,9 @@ int fingerprint_search() {
 	fingerprint_send_packet(cmd, sizeof(cmd));
 	
 	uint8_t ack[16];
-	while(fingerprint_read_response(ack, sizeof(ack)) != STATUS_OK);
-	
-	//vTaskDelay(pdMS_TO_TICKS(500));
+	while(fingerprint_read_response(ack, sizeof(ack)) != STATUS_OK) {
+		vTaskDelay(pdMS_TO_TICKS(100));
+	}	
 	
 	if(ack[9] == 0) {
 		LogMessage(LOG_INFO_LVL, "Fingerprint matched. ID = %d.\r\n", ack[11]);
@@ -375,6 +375,6 @@ void fingerprint_task(void *pvParameters){
 			pwm_set_servo_angle_lock_door();
 		}
 		
-		vTaskDelay(pdMS_TO_TICKS(6000));
+		vTaskDelay(pdMS_TO_TICKS(3000));
 	}
 }

@@ -1,14 +1,12 @@
 /**************************************************************************/ /**
  * @file      WifiHandler.h
  * @brief     File to handle HTTP Download and MQTT support
- * @author    Eduardo Garcia
- * @date      2020-01-01
-
+ * @author    Tony Yan & Yue Zhang
+ * @date      2025-04-28
  ******************************************************************************/
 
 #pragma once
 
-#pragma once
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -113,33 +111,6 @@ struct RgbColorPacket {
 /* Limitation of user name. */
 #define MAIN_CHAT_USER_NAME_SIZE 64
 
-#define PLAYER1 1  ///< Comment me to compile for player 2. Uncomment me to define for player 1.
-
-#ifdef PLAYER1
-/* Chat MQTT topic. */
-#define LED_TOPIC "P1_LED_ESE516_T0"                  // Students to change to an unique identifier for each device! LED Data
-#define GAME_TOPIC_IN "P1_GAME_ESE516_T0"             // Students to change to an unique identifier for each device! Game Data
-#define GAME_TOPIC_OUT "P2_GAME_ESE516_T0"            // Students to change to an unique identifier for each device! Game Data
-#define IMU_TOPIC "P1_IMU_ESE516_T0"                  // Students to change to an unique identifier for each device! IMU Data
-#define DISTANCE_TOPIC "P1_DISTANCE_ESE516_T0"        // Students to change to an unique identifier for each device! Distance Data
-#define TEMPERATURE_TOPIC "P1_TEMPERATURE_ESE516_T0"  // Students to change to an unique identifier for each device! Distance Data
-
-
-#else
-/* Chat MQTT topic. */
-#define LED_TOPIC "P2_LED_ESE516_T0"                  // Students to change to an unique identifier for each device! LED Data
-#define GAME_TOPIC_IN "P2_GAME_ESE516_T0"             // Students to change to an unique identifier for each device! Game Data
-#define GAME_TOPIC_OUT "P1_GAME_ESE516_T0"            // Students to change to an unique identifier for each device! Game Data
-#define IMU_TOPIC "P2_IMU_ESE516_T0"                  // Students to change to an unique identifier for each device! IMU Data
-#define DISTANCE_TOPIC "P2_DISTANCE_ESE516_T0"        // Students to change to an unique identifier for each device! Distance Data
-#define TEMPERATURE_TOPIC "P2_TEMPERATURE_ESE516_T0"  // Students to change to an unique identifier for each device! Distance Data
-
-#endif
-
-
-#define LED_TOPIC_LED_OFF "false"
-#define LED_TOPIC_LED_ON "true"
-
 // Cloud MQTT User
 #define CLOUDMQTT_USER_ID "rttyobej"
 
@@ -190,6 +161,8 @@ int cloud_request_add(uint8_t finger_id);
 int cloud_request_delete(uint8_t finger_id);
 
 void SubscribeHandlerFingerprintResponse(MessageData *msgData);
+
+// use  the LCD driver
 bool cloud_add_permission_granted(void);
 bool cloud_delete_permission_granted(void);
 bool cloud_add_permission_denied(void);
