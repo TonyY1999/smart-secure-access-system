@@ -219,8 +219,8 @@ void vPortYield( void )
 
 	/* Barriers are normally not required but do ensure the code is completely
 	within the specified behaviour for the architecture. */
-	//__asm volatile( "dsb" ::: "memory" );
-	//__asm volatile( "isb" );
+	__asm volatile( "dsb" ::: "memory" );
+	__asm volatile( "isb" );
 }
 /*-----------------------------------------------------------*/
 

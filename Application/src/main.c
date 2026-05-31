@@ -70,7 +70,7 @@ int main(void) {
     system_init();
 	
     // Initialize trace capabilities
-    vTraceEnable(TRC_START);
+    // TraceEnable(TRC_START);
 	
     // Start FreeRTOS scheduler
     vTaskStartScheduler();
@@ -90,11 +90,11 @@ static void StartTasks(void) {
     SerialConsoleWriteString(bufferPrint);
 	
 	// create IMU task here
-	if (xTaskCreate(vIMUTask, "IMU_TASK", 200, NULL, 3, &IMUTaskHandle) != pdPASS) {
-		SerialConsoleWriteString("ERR: IMU task could not be initialized!\r\n");
-	}
-	snprintf(bufferPrint, 64, "Heap after starting IMU: %d\r\n", xPortGetFreeHeapSize());
-	SerialConsoleWriteString(bufferPrint);
+	// if (xTaskCreate(vIMUTask, "IMU_TASK", 200, NULL, 3, &IMUTaskHandle) != pdPASS) {
+	// 	SerialConsoleWriteString("ERR: IMU task could not be initialized!\r\n");
+	// }
+	// snprintf(bufferPrint, 64, "Heap after starting IMU: %d\r\n", xPortGetFreeHeapSize());
+	// SerialConsoleWriteString(bufferPrint);
 	
 	// create fingerprint task here
 	if (xTaskCreate(fingerprint_task, "FINGERPRINT_TASK", 500, NULL, 4, &fingerTaskHandle) != pdPASS) {
@@ -104,18 +104,18 @@ static void StartTasks(void) {
 	SerialConsoleWriteString(bufferPrint);
 	
 	// create WIFI task here
-	if (xTaskCreate(vWifiTask, "WIFI_TASK", 700, NULL, 3, &wifiTaskHandle) != pdPASS) {
-		SerialConsoleWriteString("ERR: WIFI task could not be initialized!\r\n");
-	}
-	snprintf(bufferPrint, 64, "Heap after starting wiif task: %d\r\n", xPortGetFreeHeapSize());
-	SerialConsoleWriteString(bufferPrint);
+	// if (xTaskCreate(vWifiTask, "WIFI_TASK", 700, NULL, 3, &wifiTaskHandle) != pdPASS) {
+	// 	SerialConsoleWriteString("ERR: WIFI task could not be initialized!\r\n");
+	// }
+	// snprintf(bufferPrint, 64, "Heap after starting wiif task: %d\r\n", xPortGetFreeHeapSize());
+	// SerialConsoleWriteString(bufferPrint);
 	
 	// create LCD module task here
-	if (xTaskCreate(vLCDTask, "LCD_TASK", 700, NULL, 5, NULL) != pdPASS) {
-		SerialConsoleWriteString("ERR: LCD task could not be initialized!\r\n");
-	}
-	snprintf(bufferPrint, 64, "Heap after starting LCD module: %d\r\n", xPortGetFreeHeapSize());
-	SerialConsoleWriteString(bufferPrint);
+	// if (xTaskCreate(vLCDTask, "LCD_TASK", 700, NULL, 5, NULL) != pdPASS) {
+	// 	SerialConsoleWriteString("ERR: LCD task could not be initialized!\r\n");
+	// }
+	// snprintf(bufferPrint, 64, "Heap after starting LCD module: %d\r\n", xPortGetFreeHeapSize());
+	// SerialConsoleWriteString(bufferPrint);
 }
 
 /******************************************************************************
