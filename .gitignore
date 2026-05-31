@@ -98,4 +98,4 @@ Bootloader Test Binaries/*.bin
 Bootloader Test Binaries/*.hex
 
 // Ignore the entire project directory
-**/ESE160_Project_Byte_Crafter/
+ESE5160_Project_Byte_Crafter/
