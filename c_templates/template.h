@@ -28,14 +28,12 @@ extern "C" {
  * Global Function Declaration
  ******************************************************************************/
 /**
- * @fn		int ExampleFuncionComment(int inputInt, void *pvParameters)
- * @brief	An example function comment. Erase me!
- * @details 	Write details of function here.
-
- * @param[in]	InputInt Use me to describe inputs to functions
- * @param[out]	*pvParameters Use me to describe outputs of functions passed as arguments
- * @return		Use me to explain the return of an argument.
- * @note
+ * @brief ...
+ *
+ * @param[in] ...
+ * @param[out] ...
+ *
+ * @return ...
  */
 
 #ifdef __cplusplus
