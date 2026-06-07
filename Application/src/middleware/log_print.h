@@ -1,6 +1,6 @@
 /**************************************************************************//**
  * @file      log_print.h
- * @brief     This is the header file for log_print.c, which implements a logging system for the smart secure access system project.
+ * @brief     Header file for a logging system in the smart secure access system project.
  * @author    Tony Yan 
  * @date      2026-05-31
  ******************************************************************************/

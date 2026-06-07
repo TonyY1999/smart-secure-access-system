@@ -1,6 +1,6 @@
 /**************************************************************************//**
  * @file      log_print.c
- * @brief     This is the source file that implements a logging system for the smart secure access system project.
+ * @brief     Source file for a logging system in the smart secure access system project.
  * @author    Tony Yan 
  * @date      2026-05-31
  ******************************************************************************/
