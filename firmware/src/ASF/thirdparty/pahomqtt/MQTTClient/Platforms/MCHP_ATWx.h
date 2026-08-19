@@ -21,6 +21,8 @@
 #define MCHP_ATWX_H_
 
 #include "socket/include/socket.h"
+#include "FreeRTOS.h"
+#include "task.h"
 
 /* As WINC15x0 supports only 7 TCP sockets, maximum of 7 MQTT clients can be supported */
 #define MQTT_MAX_CLIENTS  TCP_SOCK_MAX

@@ -2,10 +2,10 @@
  * @file      fingerprint_driver.h
  * @brief     Header file for fingerprint driver functions in the Smart Secure Access System.
  * @author    Tony Yan & Yue Zhang
- * @date      2025-04-16
+ * @date      2026-08-02
  ******************************************************************************/
 
-#ifndef FINGERPRINT_H
+ #ifndef FINGERPRINT_H
 #define FINGERPRINT_H 
 
 #ifdef __cplusplus
@@ -21,86 +21,115 @@ extern "C" {
 /******************************************************************************
  * Defines
  ******************************************************************************/
-#define GEN_IMG_CMD			{0xEF, 0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0x01, 0x00, 0x03, 0x01, 0x00, 0x05}
-#define GEN_CF_TO_B1_CMD	{0xEF, 0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0x01, 0x00, 0x04, 0x02, 0x01, 0x00, 0x08}
-#define GEN_CF_TO_B2_CMD	{0xEF, 0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0x01, 0x00, 0x04, 0x02, 0x02, 0x00, 0x09}
-#define REG_MODEL_CMD		{0xEF, 0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0x01, 0x00, 0x03, 0x05, 0x00, 0x09}
-#define STORE_CMD(ID)		{0xEF, 0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0x01, 0x00, 0x06, 0x06, 0x01, (uint8_t)(ID >> 8), (uint8_t)(ID & 0xFF), (uint8_t)((0x0E + ID) >> 8), (uint8_t)((0x0E + ID) & 0xFF)}
-#define DELETE_CMD(ID)		{0xEF, 0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0x01, 0x00, 0x07, 0x0C, (uint8_t)(ID >> 8), (uint8_t)(ID & 0xFF), 0x00, 0x01, (uint8_t)(0x15 + ID) >> 8, (uint8_t)(0x15 + ID) & 0xFF};
-#define EMPTY_CMD			{0xEF, 0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0x01, 0x00, 0x03, 0x0D, 0x00, 0x11};
-#define SEARCH_CMD			{0xEF, 0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0x01, 0x00, 0x08, 0x04, 0x01, 0x00, 0x00, 0x00, 0x32, 0x00, 0x40}
-#define READ_SYS_CMD		{0xEF, 0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0x01, 0x00, 0x03, 0x0F, 0x00, 0x13}
-#define TEMP_NUM_CMD		{0xEF, 0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0x01, 0x00, 0x03, 0x1D, 0x00, 0x21}
-#define READ_INDEX_CMD		{0xEF, 0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0x01, 0x00, 0x04, 0x1F, 0x00, 0x00, 0x24};
+// R503 fingerprint module default settings
+#define FP_DEFAULT_ADDRESS      0xFFFFFFFF
+#define FP_BAUDRATE             9600
 
 /******************************************************************************
  * Structures and Enumerations
  ******************************************************************************/
+// Fingerprint driver status codes
+ typedef enum
+{
+    FP_DRIVER_OK = 0,
+
+    FP_DRIVER_INIT_ERROR,
+    FP_DRIVER_UART_ERROR,
+    FP_DRIVER_BAD_HEADER,
+    FP_DRIVER_BAD_ADDRESS,
+    FP_DRIVER_BAD_PID,
+    FP_DRIVER_BAD_LENGTH,
+    FP_DRIVER_BAD_CHECKSUM,
+    FP_DRIVER_BAD_RESPONSE,
+    FP_DRIVER_INVALID_ARG
+
+} fp_driver_status_t;
+
+// Fingerprint ACK packet command status codes
 typedef enum
 {
-    FP_OPERATION_DONE           = 0x00,
-    FP_PACKET_RECEIVE_FAIL      = 0x01,
-    FP_DETECT_FAIL              = 0x02,
-    FP_COLLECT_FAIL             = 0x03,
-    FP_IMAGE_MESSY              = 0x06,
-    FP_IMAGE_POOR               = 0x07,
-    // FP_NOT_MATCH                = 0x08,
-    // FP_NOT_FOUND                = 0x09,
-    // FP_COMBINE_FAIL             = 0x0A,
-    // FP_PAGE_ID_INVALID          = 0x0B,
-    // FP_TEMPLATE_INVALID         = 0x0C,
-    // FP_UPLOAD_ERROR             = 0x0D,
-    // FP_DELETE_FAIL              = 0x10,
-    // FP_EMPTY_FAIL               = 0x11,
-    // FP_FLASH_ERROR              = 0x18,
+    FP_STAGE_NONE = 0,
 
-    // FP_TIMEOUT                  = 0xF0,
-    // FP_BAD_PACKET               = 0xF1,
-    // FP_CHECKSUM_ERROR           = 0xF2,
-    // FP_PARAM_ERROR              = 0xF3
-} fp_status_t;
+    FP_STAGE_HANDSHAKE,
+    FP_STAGE_CHECK_SENSOR,
+
+    FP_STAGE_GET_IMAGE,
+    FP_STAGE_GET_IMAGE_EX,
+    FP_STAGE_IMAGE_TO_CHAR,
+    FP_STAGE_CREATE_MODEL,
+    FP_STAGE_STORE_MODEL,
+
+    FP_STAGE_SEARCH,
+
+    FP_STAGE_DELETE,
+    FP_STAGE_EMPTY_LIBRARY,
+    FP_STAGE_TEMPLATE_COUNT,
+
+    FP_STAGE_LED_CONTROL
+
+} fp_stage_t;
+
+// Fingerprint command execution result structure
+typedef struct
+{
+    fp_driver_status_t driver_status;
+
+    fp_stage_t stage;
+
+    bool confirmation_valid;
+
+    uint8_t confirmation_code;
+
+} fp_result_t;
 
 /******************************************************************************
  * Global Function Declaration
  ******************************************************************************/
 /**
- * @brief ...
+ * @brief Initialize the fingerprint module hardware and USART interface.
  *
- * @param[in] ...
- * @param[out] ...
+ * @param[in] None
+ * @param[out] None
  *
- * @return ...
+ * @return FP_DRIVER_OK on success, or an error code on failure.
  */
+fp_driver_status_t  fp_init(void);
 
-bool fingerprint_init();
 
+// fp_result_t fp_handshake(void);
+
+// fp_result_t fp_check_sensor(void);
+
+/****************************************
+ * Fingerprint basic operations
+ ****************************************/
 /**
  * @brief Capture a fingerprint image into ImageBuffer.
  * @details Sends the GEN_IMG command to the sensor.
  * @return 0 on success, -1 on failure.
  */
-fp_status_t gen_img();
+fp_result_t get_img(void);
 
 /**
- * @brief Generate character file from captured image into CharBuffer1.
+ * @brief Generate character file from captured image into CharBuffer.
  * @details Sends the IMAGE2TZ1 command to the sensor.
  * @return 0 on success, -1 on failure.
  */
-fp_status_t gen_cf_to_b1();
+typedef enum
+{
+    FP_BUFFER_1 = 0x01,
+    FP_BUFFER_2 = 0x02
 
-/**
- * @brief Generate character file from captured image into CharBuffer2.
- * @details Sends the IMAGE2TZ2 command to the sensor.
- * @return 0 on success, -1 on failure.
- */
-fp_status_t gen_cf_to_b2();
+} fp_buffer_id_t;
+
+fp_result_t img_to_char(fp_buffer_id_t buffer_id);
 
 /**
  * @brief Combine CharBuffer1 and CharBuffer2 into a fingerprint template.
  * @details Sends the REG_MODEL command to the sensor.
  * @return 0 on success, -1 on failure.
  */
-fp_status_t reg_model();
+fp_result_t create_model(void);
 
 /**
  * @brief Store the generated fingerprint template into the sensor's flash library.
@@ -108,46 +137,59 @@ fp_status_t reg_model();
  * @param[in] id Fingerprint ID location to store the template.
  * @return 0 on success, -1 on failure.
  */
-fp_status_t store_finger(uint8_t id);
+fp_result_t store_model(uint8_t id);
 
+/****************************************
+ * Search / Verify
+ ****************************************/
+fp_result_t fp_search(fp_buffer_id_t buffer_id,
+                      uint16_t start_page,
+                      uint16_t page_num,
+                      fp_match_result_t *match);
+
+fp_result_t fp_verify(fp_match_result_t *match);
 /**
  * @brief Enroll a new fingerprint into the library.
  * @details Guides the user through fingerprint capture and storage steps.
  * @param[in] Fingerprint ID that want to be added.
  * @return 0 on success, -1 on failure.
  */
-fp_status_t fingerprint_enroll(uint8_t id);
+fp_result_t fingerprint_enroll(uint8_t id);
 
+
+/****************************************
+ * Fingerprint database
+ ****************************************/
 /**
  * @brief Delete a stored fingerprint template.
  * @details Sends the DELETE command to the sensor.
  * @param[in] Fingerprint ID that want to be added. 
  * @return 0 on success, -1 on failure.
  */
-fp_status_t fingerprint_delete(uint8_t id);
+fp_status_t fp_delete(uint8_t id);
 
 /**
  * @brief Empty the entire fingerprint library.
  * @details Sends the EMPTY command to the sensor.
  * @return 0 on success, -1 on failure.
  */
-fp_status_t fingerprint_empty();
+fp_status_t fp_empty_library(void);
 
 /**
  * @brief Search for a matching fingerprint in the library.
  * @details Captures a fingerprint and compares it to stored templates.
  * @return Matched ID on success, -1 on failure.
  */
-fp_status_t fingerprint_search();
+fp_status_t fp_search();
 
 /**
  * @brief Read the number of stored fingerprint templates.
  * @details Sends the TEMPLATE_COUNT command to the sensor.
  * @return Number of templates on success, -1 on failure.
  */
-fp_status_t read_temp_num();
+fp_status_t fp_read_temp_num();
 
-fp_status_t find_smallest_index();
+fp_status_t fp_find_smallest_index();
 
 #ifdef __cplusplus
 }

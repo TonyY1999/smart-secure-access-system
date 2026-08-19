@@ -5,7 +5,8 @@
  * @date      2020-02-15
  ******************************************************************************/
 
-#pragma once
+#ifndef CLI_THREAD_H
+#define CLI_THREAD_H
 
 // clang-format off
 #include "asf.h"
@@ -70,3 +71,5 @@ BaseType_t CLI_ListFiles(char *pcWriteBuffer, size_t xWriteBufferLen, const int8
 #define CLI_CALLBACK_CLEAR_SCREEN     (pdCOMMAND_LINE_CALLBACK)xCliClearTerminalScreen
 #define CLI_PARAMS_CLEAR_SCREEN       0
 #define TICK_CMD_HELP                 "ticks: Prints the number of ticks since the scheduler started.\r\n"
+
+#endif /* CLI_THREAD_H */

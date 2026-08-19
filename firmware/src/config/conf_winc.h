@@ -40,7 +40,7 @@ extern "C" {
 #endif
 
 #include "board.h"
-#include "SerialConsole/SerialConsole.h"
+#include "middleware/log_print.h"
 
 /*
    ---------------------------------
@@ -88,8 +88,8 @@ extern "C" {
    ---------------------------------
 */
 
-#define CONF_WINC_DEBUG					(1)
-#define CONF_WINC_PRINTF				LogMessageDebug 
+#define CONF_WINC_DEBUG					(0)
+#define CONF_WINC_PRINTF				log_debug 
 
 #ifdef __cplusplus
 }
