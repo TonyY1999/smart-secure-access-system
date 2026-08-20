@@ -99,5 +99,3 @@ Bootloader Test Binaries/*.hex
 
 // Ignore the entire project directory
 ESE5160_Project_Byte_Crafter/
-
-*.cproj
