@@ -21,65 +21,25 @@ extern "C" {
 /******************************************************************************
  * Defines
  ******************************************************************************/
-// R503 fingerprint module default settings
-#define FP_DEFAULT_ADDRESS      0xFFFFFFFF
-#define FP_BAUDRATE             9600
 
 /******************************************************************************
  * Structures and Enumerations
  ******************************************************************************/
-// Fingerprint driver status codes
- typedef enum
-{
-    FP_DRIVER_OK = 0,
-
-    FP_DRIVER_INIT_ERROR,
-    FP_DRIVER_UART_ERROR,
-    FP_DRIVER_BAD_HEADER,
-    FP_DRIVER_BAD_ADDRESS,
-    FP_DRIVER_BAD_PID,
-    FP_DRIVER_BAD_LENGTH,
-    FP_DRIVER_BAD_CHECKSUM,
-    FP_DRIVER_BAD_RESPONSE,
-    FP_DRIVER_INVALID_ARG
-
-} fp_driver_status_t;
-
-// Fingerprint ACK packet command status codes
 typedef enum
 {
-    FP_STAGE_NONE = 0,
+    FP_OK = 0,
+    FP_ERR_UART_READ,
+    FP_ERR_UART_WRITE,
+    FP_ERR_WRONG_PID,
+    FP_ERR_ON_PASS_IN_ARGUMENT,
+} fp_status_t;
 
-    FP_STAGE_HANDSHAKE,
-    FP_STAGE_CHECK_SENSOR,
-
-    FP_STAGE_GET_IMAGE,
-    FP_STAGE_GET_IMAGE_EX,
-    FP_STAGE_IMAGE_TO_CHAR,
-    FP_STAGE_CREATE_MODEL,
-    FP_STAGE_STORE_MODEL,
-
-    FP_STAGE_SEARCH,
-
-    FP_STAGE_DELETE,
-    FP_STAGE_EMPTY_LIBRARY,
-    FP_STAGE_TEMPLATE_COUNT,
-
-    FP_STAGE_LED_CONTROL
-
-} fp_stage_t;
-
-// Fingerprint command execution result structure
 typedef struct
 {
-    fp_driver_status_t driver_status;
-
-    fp_stage_t stage;
-
-    bool confirmation_valid;
-
+    fp_status_t status;
     uint8_t confirmation_code;
-
+    uint16_t fp_id;
+    // uint16_t score;
 } fp_result_t;
 
 /******************************************************************************
@@ -93,7 +53,7 @@ typedef struct
  *
  * @return FP_DRIVER_OK on success, or an error code on failure.
  */
-fp_driver_status_t  fp_init(void);
+bool fp_init(void);
 
 
 // fp_result_t fp_handshake(void);
@@ -104,8 +64,8 @@ fp_driver_status_t  fp_init(void);
  * Fingerprint basic operations
  ****************************************/
 /**
- * @brief Capture a fingerprint image into ImageBuffer.
- * @details Sends the GEN_IMG command to the sensor.
+ * @brief Capture a fingerprint image an put it into ImageBuffer.
+ * @details Sends the command with the FP_CMD_GET_IMAGE instruction code to the sensor.
  * @return 0 on success, -1 on failure.
  */
 fp_result_t get_img(void);
@@ -142,7 +102,7 @@ fp_result_t store_model(uint8_t id);
 /****************************************
  * Search / Verify
  ****************************************/
-fp_result_t fp_search(fp_buffer_id_t buffer_id,
+uint8_t fp_search(fp_buffer_id_t buffer_id,
                       uint16_t start_page,
                       uint16_t page_num,
                       fp_match_result_t *match);

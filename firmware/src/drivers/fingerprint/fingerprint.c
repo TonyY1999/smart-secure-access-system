@@ -14,6 +14,7 @@
 /******************************************************************************
  * Defines
  ******************************************************************************/
+// Fingerprint module USART configuration
 #define FP_SERCOM              SERCOM0
 #define FP_SERCOM_MUX_SETTING  USART_RX_1_TX_0_XCK_1
 
@@ -22,14 +23,25 @@
 #define FP_PINMUX_PAD2         PINMUX_UNUSED
 #define FP_PINMUX_PAD3         PINMUX_UNUSED
 
-#define FP_HEADER   0xEF01
+// A fingerprint data packet consists of a fixed header, address, PID, length, content, and checksum.
+// Header(2 bytes) + Address(4 bytes) + PID(1 byte) + Length(2 bytes) + Content(N bytes) + Checksum(2 bytes)
 
-#define FP_ADDRESS  0xFFFFFFFF
+// Header: Fixed value of 0xEF01; High byte transferred first.
+// Address: Fixed value of 0xFFFFFFFF; High byte transferred first.
+// PID: Packet identifier; 0x01 for command packets, 0x07 for acknowledgment packets.
+// Length: length of package content plus the length of Checksum( 2 bytes), unit is byte. High byte transferred first.
+// Content: Command or data specific to the packet type; variable length.
+// Checksum: Sum of all bytes in the packet, excluding the header and checksum itself; High byte transferred first.
 
-#define FP_PID_COMMAND         0x01
-#define FP_PID_ACK             0x07
+// Fingerprint data packet fixed header and address
+#define FP_HEADER   0xEF01u
+#define FP_ADDRESS  0xFFFFFFFFu
 
-// Fingerprint instruction codes
+// Fingerprint data packet identifiers(PID)
+#define FP_PID_COMMAND      0x01u
+#define FP_PID_ACK          0x07u
+
+// Fingerprint data packet command contents(instruction codes)
 #define FP_CMD_GET_IMAGE           0x01u
 #define FP_CMD_IMAGE_TO_CHAR       0x02u
 #define FP_CMD_MATCH               0x03u
@@ -51,8 +63,9 @@
 
 #define FP_CMD_HANDSHAKE           0x40u
 
-#define FP_TX_PACKET_MAX_SIZE      64u
-#define FP_ACK_DATA_MAX_SIZE       64u
+// Fingerprint data packet maximum sizes(unit in bytes)
+#define FP_TX_PACKET_MAX_SIZE      32u
+#define FP_ACK_DATA_MAX_SIZE       32u
 
 /******************************************************************************
  * Variables
@@ -71,13 +84,15 @@ static void fp_put_u32(uint8_t *buf, uint32_t value);
 // Helper function to convert a byte array to a 16-bit integer
 static uint16_t fp_get_u16(const uint8_t *buf);
 
-// Helper function to convert a byte array to a 32-bit integer
-static fp_driver_status_t fp_send_command(const uint8_t *content, uint16_t content_len);
+// send command to fingerprint sensor
+static bool fp_send_command(const uint8_t *content, uint16_t content_len);
+
+static bool fp_read_ack(void);
 
 /******************************************************************************
  * Global Functions
  ******************************************************************************/
-fp_driver_status_t fingerprint_init(void)
+bool fingerprint_init(void)
 {	
 	struct usart_config usart_config_instance;
 	usart_get_config_defaults(&usart_config_instance);
@@ -91,20 +106,26 @@ fp_driver_status_t fingerprint_init(void)
 	usart_config_instance.pinmux_pad3 = FP_PINMUX_PAD3;
 
 	if(usart_init(&fp_usart_instance, FP_SERCOM, &usart_config_instance) != STATUS_OK) {
-		return FP_DRIVER_UART_ERROR;
+		return false;
 	}
 
 	usart_enable(&fp_usart_instance);
 
 	delay_ms(200); // Wait for the sensor to power up and be ready for communication
     
-	return FP_DRIVER_OK;
+	return true;
 }
 
 fp_result_t get_img(void)
 {
-    uint8_t command[] = {FP_CMD_GET_IMAGE};
-    return fp_send_command(command, sizeof(command));
+    uint8_t instruction_code[] = {FP_CMD_GET_IMAGE};
+
+    fp_result_t result = fp_send_command(instruction_code, sizeof(instruction_code));
+    if (result.status != FP_OK) {
+        return result;
+    }
+    
+    return fp_read_ack();
 }
 
 /******************************************************************************
@@ -129,26 +150,15 @@ static uint16_t fp_get_u16(const uint8_t *buf)
     return ((uint16_t)buf[0] << 8) | buf[1];
 }
 
-static uint16_t fp_checksum(uint8_t pid, uint16_t length, const uint8_t *content)
-{   
-    uint16_t checksum = pid + (length >> 8) + (length & 0xFF);
 
-    for(uint16_t i = 0; i < length - 2; i++)
-    {
-        checksum += content[i];
-    }
-
-    return checksum;
-}
-
-static fp_driver_status_t fp_send_command(const uint8_t *content, uint16_t content_len)
+static fp_result_t fp_send_command(const uint8_t *content, uint16_t content_len)
 {
-    uint8_t packet[FP_TX_PACKET_MAX_SIZE];
+    fp_result_t result = {0};
 
-    uint16_t index = 0;
-
-    if ((content == NULL) || (content_len == 0)) {
-        return FP_DRIVER_INVALID_ARG;
+    // validate input parameters
+    if(content == NULL || content_len == 0) {
+        result.status = FP_ERR_ON_PASS_IN_ARGUMENT;
+        return result;
     }
 
     /*
@@ -163,43 +173,99 @@ static fp_driver_status_t fp_send_command(const uint8_t *content, uint16_t conte
      *
      * total = 11 + N
      */
-    // Build the packet
-    // Build the header
+    // check if the total packet size exceeds the maximum allowed size
+    if((11u + content_len) > FP_TX_PACKET_MAX_SIZE) {
+        result.status = FP_ERR_ON_PASS_IN_ARGUMENT;
+        return result;
+    }
+
+    // create a buffer to hold the entire packet to be sent
+    uint8_t packet[FP_TX_PACKET_MAX_SIZE];
+    uint16_t checksum = 0;
+    uint16_t index = 0;
+
+    // build the header(2 bytes)
     fp_put_u16(&packet[index], FP_HEADER);
     index += 2;
 
-    // Build the address
+    // build the address(4 bytes)
     fp_put_u32(&packet[index],FP_ADDRESS);
     index += 4;
 
-    // Build the PID
+    // build the PID(packet identifier)(1 byte)
     packet[index++] = FP_PID_COMMAND;
+    checksum += (uint16_t)FP_PID_COMMAND;
 
-    // Build the length field
+    // build the length field
     // length = content_len + checksum(2 bytes)
     uint16_t length = (uint16_t)(content_len + 2);
     fp_put_u16(&packet[index], length);
     index += 2;
+    checksum += (uint16_t)(length >> 8);
+    checksum += (uint16_t)(length & 0xFF);
 
-    // Build the command and parameters
+    // build the command and parameters
     for(uint16_t i = 0; i < content_len; i++)
     {
         packet[index++] = content[i];
-
+        checksum += content[i];
     }
 
-    // Build the checksum
-    uint16_t checksum = fp_checksum(FP_PID_COMMAND, length, content);
+    // build the checksum
     fp_put_u16(&packet[index], checksum);
     index += 2;
     
     // UART send the packet
     if(usart_write_buffer_wait(&fp_usart_instance, packet, index) != STATUS_OK)
     {
-        return FP_DRIVER_UART_ERROR;
-
+        result.status = FP_ERR_UART_WRITE;
+        return result;
     }
 
-    return FP_DRIVER_OK;
+    return result;
 }
 
+
+static fp_result_t fp_read_ack(uint8_t *instruction_code)
+{
+    fp_result_t result = {0};
+
+    // check if the instruction_code pointer is NULL
+    if(instruction_code != NULL) {
+        result.status = FP_ERR_ON_PASS_IN_ARGUMENT;
+        return result;
+    }
+
+
+    // read the first 9 bytes of the acknowledgment packet
+    uint8_t head[9];
+    if (usart_read_buffer_wait(&fp_usart_instance, head, 9) != STATUS_OK) {
+        result.status = FP_ERR_UART_READ;
+        return result;
+    }
+
+    // get the Length(2 bytes) from the acknowledgment packet
+    uint16_t length = ((uint16_t)head[7] << 8) | head[8];
+
+    // read the remaining bytes of the acknowledgment packet
+    uint8_t remaining[length];
+    if (usart_read_buffer_wait(&fp_usart_instance, remaining, length) != STATUS_OK) {
+        result.status = FP_ERR_UART_READ;
+        return result;
+    }
+
+    // Check if the PID is correct for acknowledgment packets
+    if(head[6] != FP_PID_ACK) {
+        result.status = FP_ERR_WRONG_PID;
+        return result;
+    }
+
+    // extract the instruction code from the acknowledgment packet
+    result.confirmation_code = remaining[0];
+
+    if(instruction_code == FP_CMD_SEARCH) {
+        result.page_id = ((uint16_t)remaining[1] << 8) | remaining[2];
+    }
+
+    return result;
+}
