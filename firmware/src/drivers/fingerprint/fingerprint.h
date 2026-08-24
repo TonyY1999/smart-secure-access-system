@@ -5,7 +5,7 @@
  * @date      2026-08-02
  ******************************************************************************/
 
- #ifndef FINGERPRINT_H
+#ifndef FINGERPRINT_H
 #define FINGERPRINT_H 
 
 #ifdef __cplusplus
@@ -21,25 +21,60 @@ extern "C" {
 /******************************************************************************
  * Defines
  ******************************************************************************/
+#define FP_INVALID_CONFIRMATION_CODE    0x1Eu
+#define FP_INVALID_FINGERPRINT_ID       0xFFFFu
+
+/** 
+ * A fingerprint data packet consists of a fixed header, address, PID, length, content, and checksum.
+ * 
+ * Header (2 bytes)
+ * Address (4 bytes)
+ * Packet identifier (1 byte) 
+ * Packet Length (2 bytes) 
+ * Packet Content (N bytes)
+ * Checksum (2 bytes)
+
+ * Header: Fixed value of 0xEF01; High byte transferred first.
+ * Address: Fixed value of 0xFFFFFFFF; High byte transferred first.
+ * Packet identifier: 0x01 for command packets, 0x07 for acknowledgment packets.
+ * Packet Length: length of package content plus the length of Checksum( 2 bytes), unit is byte. High byte transferred first.
+ * Packet Content: Command or data specific to the packet type; variable length.
+ * Checksum: Arithmetic sum of package identifier, package length and all package contens, high byte is transferred first
+**/
 
 /******************************************************************************
  * Structures and Enumerations
  ******************************************************************************/
+// Fingerprint driver status enumeration
 typedef enum
 {
-    FP_OK = 0,
-    FP_ERR_UART_READ,
-    FP_ERR_UART_WRITE,
-    FP_ERR_WRONG_PID,
-    FP_ERR_ON_PASS_IN_ARGUMENT,
+    FP_STATUS_OK = 0,
+
+    // Parameter errors
+    FP_ERR_INVALID_CONTENT,
+    FP_ERR_INVALID_CONTENT_LENGTH,
+    FP_ERR_INVALID_INSTRUCTION_CODE,
+
+    // UART errors
+    FP_ERR_UART_SEND,
+    FP_ERR_UART_RECEIVE,
+
+    // Packet errors
+    FP_ERR_HEADER,
+    FP_ERR_ADDRESS,
+    FP_ERR_CHECKSUM,
+
+    // Protocol errors
+    // FP_ERR_UNEXPECTED_INSTRUCTION,
+    // FP_ERR_CONFIRMATION_CODE,
 } fp_status_t;
 
+// Fingerprint match result structure
 typedef struct
 {
     fp_status_t status;
     uint8_t confirmation_code;
     uint16_t fp_id;
-    // uint16_t score;
 } fp_result_t;
 
 /******************************************************************************
@@ -51,53 +86,60 @@ typedef struct
  * @param[in] None
  * @param[out] None
  *
- * @return FP_DRIVER_OK on success, or an error code on failure.
+ * @return
  */
 bool fp_init(void);
-
-
-// fp_result_t fp_handshake(void);
-
-// fp_result_t fp_check_sensor(void);
 
 /****************************************
  * Fingerprint basic operations
  ****************************************/
 /**
- * @brief Capture a fingerprint image an put it into ImageBuffer.
- * @details Sends the command with the FP_CMD_GET_IMAGE instruction code to the sensor.
- * @return 0 on success, -1 on failure.
+ * @brief Capture a fingerprint image from the sensor.
+ *
+ * @param[in] None
+ * @param[out] None
+ *
+ * @return fp_result_t structure containing the status and confirmation code.
  */
 fp_result_t get_img(void);
 
-/**
- * @brief Generate character file from captured image into CharBuffer.
- * @details Sends the IMAGE2TZ1 command to the sensor.
- * @return 0 on success, -1 on failure.
- */
+
 typedef enum
 {
-    FP_BUFFER_1 = 0x01,
-    FP_BUFFER_2 = 0x02
+    FP_CHAR_BUFFER_1 = 0x01u,
+    FP_CHAR_BUFFER_2 = 0x02u
 
 } fp_buffer_id_t;
 
+/**
+ * @brief Convert the captured fingerprint image to a character file and store it in the specified buffer.
+ *
+ * @param[in] buffer_id The ID of the buffer where the character file will be stored.
+ * @param[out] None
+ *
+ * @return fp_result_t structure containing the status and confirmation code.
+ */
 fp_result_t img_to_char(fp_buffer_id_t buffer_id);
 
 /**
- * @brief Combine CharBuffer1 and CharBuffer2 into a fingerprint template.
- * @details Sends the REG_MODEL command to the sensor.
- * @return 0 on success, -1 on failure.
+ * @brief Create a fingerprint model by combining two character files from the buffers.
+ *
+ * @param[in] None
+ * @param[out] None
+ *
+ * @return fp_result_t structure containing the status and confirmation code.
  */
 fp_result_t create_model(void);
 
 /**
- * @brief Store the generated fingerprint template into the sensor's flash library.
- * @details Sends the STORE command to the sensor with the specified ID.
- * @param[in] id Fingerprint ID location to store the template.
- * @return 0 on success, -1 on failure.
+ * @brief Store the created fingerprint model in the sensor's library with the specified ID.
+ *
+ * @param[in] fp_id The fingerprint ID under which to store the fingerprint model.
+ * @param[out] None
+ *
+ * @return fp_result_t structure containing the status and confirmation code.
  */
-fp_result_t store_model(uint8_t id);
+fp_result_t store_model(uint16_t fp_id);
 
 /****************************************
  * Search / Verify
@@ -112,7 +154,7 @@ fp_result_t fp_verify(fp_match_result_t *match);
  * @brief Enroll a new fingerprint into the library.
  * @details Guides the user through fingerprint capture and storage steps.
  * @param[in] Fingerprint ID that want to be added.
- * @return 0 on success, -1 on failure.
+ * @return fp_result_t structure containing the status and confirmation code    .
  */
 fp_result_t fingerprint_enroll(uint8_t id);
 
@@ -124,23 +166,23 @@ fp_result_t fingerprint_enroll(uint8_t id);
  * @brief Delete a stored fingerprint template.
  * @details Sends the DELETE command to the sensor.
  * @param[in] Fingerprint ID that want to be added. 
- * @return 0 on success, -1 on failure.
+ * @return fp_result_t structure containing the status and confirmation code.
  */
-fp_status_t fp_delete(uint8_t id);
+fp_result_t fp_delete(uint8_t id);
 
 /**
  * @brief Empty the entire fingerprint library.
  * @details Sends the EMPTY command to the sensor.
- * @return 0 on success, -1 on failure.
+ * @return fp_result_t structure containing the status and confirmation code.
  */
-fp_status_t fp_empty_library(void);
+fp_result_t fp_empty_library(void);
 
 /**
  * @brief Search for a matching fingerprint in the library.
  * @details Captures a fingerprint and compares it to stored templates.
- * @return Matched ID on success, -1 on failure.
+ * @return fp_result_t structure containing the status and confirmation code.
  */
-fp_status_t fp_search();
+fp_result_t fp_search();
 
 /**
  * @brief Read the number of stored fingerprint templates.
