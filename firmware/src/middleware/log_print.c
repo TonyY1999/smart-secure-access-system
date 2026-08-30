@@ -14,6 +14,7 @@
 /******************************************************************************
  * Defines
  ******************************************************************************/
+#define LOG_BUFFER_SIZE    128u
 
 /******************************************************************************
  * Variables
@@ -23,6 +24,7 @@ static bool log_initialized = false;
 /******************************************************************************
  * Forward Declarations
  ******************************************************************************/
+static void log_vprint(const char* prefix, const char* fmt, va_list args);
 
 /******************************************************************************
  * Global Functions
@@ -45,62 +47,81 @@ bool log_init(void)
     return true;
 }
 
-void log_print(const char *msg)
+void log_print(const char* fmt, ...)
 {
-    if(!log_initialized || msg == NULL) {
-        return;
-    }
+    va_list args;
 
-    dbg_print_str(msg);
+    va_start(args, fmt);
+
+    log_vprint(NULL, fmt, args);
+
+    va_end(args);
 }
 
-void log_error(const char *msg) 
+void log_error(const char* fmt, ...)
 {
-    if(!log_initialized || msg == NULL) {
-        return;
-    }
+    va_list args;
 
-    dbg_print_str("[ERROR]: ");
-    dbg_print_str(msg);
-    dbg_print_str("\r\n");
+    va_start(args, fmt);
+
+    log_vprint("[ERROR]: ", fmt, args);
+
+    va_end(args);
 }
 
-void log_warn(const char *msg)
+void log_warn(const char* fmt, ...)
 {
-    if(!log_initialized || msg == NULL) {
-        return;
-    }
+    va_list args;
 
-    dbg_print_str("[WARN]: ");
-    dbg_print_str(msg);
-    dbg_print_str("\r\n");
+    va_start(args, fmt);
+
+    log_vprint("[WARN]: ", fmt, args);
+
+    va_end(args);
 }
 
-void log_info(const char *msg)
+void log_info(const char* fmt, ...)
 {
-    if(!log_initialized || msg == NULL) {
-        return;
-    }
+    va_list args;
 
-    dbg_print_str("[INFO]: ");
-    dbg_print_str(msg);
-    dbg_print_str("\r\n");
+    va_start(args, fmt);
+
+    log_vprint("[INFO]: ", fmt, args);
+
+    va_end(args);
 }
 
-void log_debug(const char *msg)
+void log_debug(const char* fmt, ...)
 {
-    if(!log_initialized || msg == NULL) {
-        return;
-    }
+    va_list args;
 
-    dbg_print_str("[DEBUG]: ");
-    dbg_print_str(msg);
-    dbg_print_str("\r\n");
+    va_start(args, fmt);
+
+    log_vprint("[DEBUG]: ", fmt, args);
+
+    va_end(args);
 }
 
 /******************************************************************************
  * Local Functions
  ******************************************************************************/
+static void log_vprint(const char* prefix, const char* fmt, va_list args)
+{
+    char buffer[LOG_BUFFER_SIZE];
+
+    if (!log_initialized || fmt == NULL){
+        return;
+    }
+
+    if (prefix != NULL){
+        dbg_print_str(prefix);
+    }
+
+    vsnprintf(buffer, sizeof(buffer), fmt, args);
+
+    dbg_print_str(buffer);
+    dbg_print_str("\r\n");
+}
 
 /******************************************************************************
  * Callback Functions

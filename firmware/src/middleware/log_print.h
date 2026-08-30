@@ -17,6 +17,7 @@ extern "C" {
  ******************************************************************************/
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdarg.h>
 
 /******************************************************************************
  * Defines
@@ -47,7 +48,7 @@ bool log_init(void);
  *
  * @returns None
  */
-void log_print(const char *msg);
+void log_print(const char* fmt, ...);
 
 /**
  * @brief Prints an error message to the log, prefixed with "[ERROR]: ".
@@ -57,7 +58,7 @@ void log_print(const char *msg);
  *
  * @returns None
  */
-void log_error(const char *msg);
+void log_error(const char* fmt, ...);
 
 /**
  * @brief Prints a warning message to the log, prefixed with "[WARN]: ".
@@ -67,7 +68,7 @@ void log_error(const char *msg);
  *
  * @returns None
  */
-void log_warn(const char *msg);
+void log_warn(const char* fmt, ...);
 
 /**
  * @brief Prints an info message to the log, prefixed with "[INFO]: ".
@@ -77,7 +78,7 @@ void log_warn(const char *msg);
  *
  * @returns None
  */
-void log_info(const char *msg);
+void log_info(const char* fmt, ...);
 
 /**
  * @brief Prints a debug message to the log, prefixed with "[DEBUG]: ".
@@ -87,7 +88,7 @@ void log_info(const char *msg);
  *
  * @returns None
  */
-void log_debug(const char *msg);
+void log_debug(const char* fmt, ...);
 
 #ifdef __cplusplus
 }
