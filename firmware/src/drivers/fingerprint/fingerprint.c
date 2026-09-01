@@ -174,6 +174,18 @@ fp_result_t store_model(uint16_t fp_id)
     return fp_read_ack(FP_CMD_STORE_MODEL);
 }
 
+fp_result_t fp_empty_library(void)
+{
+    uint8_t content[] = {FP_CMD_EMPTY_LIBRARY};
+
+    fp_result_t result = fp_send_cmd(content, sizeof(content));
+    if (result.status != FP_STATUS_OK) {
+        return result;
+    }
+    
+    return fp_read_ack(FP_CMD_EMPTY_LIBRARY);
+}
+
 /******************************************************************************
  * Local Helper Functions
  ******************************************************************************/
