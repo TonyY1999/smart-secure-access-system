@@ -22,7 +22,6 @@ extern "C" {
  * Defines
  ******************************************************************************/
 #define FP_INVALID_CONFIRMATION_CODE    0x1Eu
-#define FP_INVALID_FINGERPRINT_ID       0xFFFFu
 
 /** 
  * A fingerprint data packet consists of a fixed header, address, PID, length, content, and checksum.
@@ -53,7 +52,7 @@ typedef enum
     // Parameter errors
     FP_ERR_INVALID_CONTENT,
     FP_ERR_INVALID_CONTENT_LENGTH,
-    FP_ERR_INVALID_INSTRUCTION_CODE,
+    // FP_ERR_INVALID_INSTRUCTION_CODE,
 
     // UART errors
     FP_ERR_UART_SEND,
@@ -62,19 +61,13 @@ typedef enum
     // Packet errors
     FP_ERR_HEADER,
     FP_ERR_ADDRESS,
-    FP_ERR_CHECKSUM,
-
-    // Protocol errors
-    // FP_ERR_UNEXPECTED_INSTRUCTION,
-    // FP_ERR_CONFIRMATION_CODE,
+    FP_ERR_CHECKSUM
 } fp_status_t;
 
-// Fingerprint match result structure
 typedef struct
 {
-    fp_status_t status;
-    uint8_t confirmation_code;
-    uint16_t fp_id;
+    fp_status_t status;          
+    uint8_t confirmation_code;   
 } fp_result_t;
 
 /******************************************************************************
@@ -150,14 +143,6 @@ uint8_t fp_search(fp_buffer_id_t buffer_id,
                       fp_match_result_t *match);
 
 fp_result_t fp_verify(fp_match_result_t *match);
-/**
- * @brief Enroll a new fingerprint into the library.
- * @details Guides the user through fingerprint capture and storage steps.
- * @param[in] Fingerprint ID that want to be added.
- * @return fp_result_t structure containing the status and confirmation code    .
- */
-fp_result_t fingerprint_enroll(uint8_t id);
-
 
 /****************************************
  * Fingerprint database
@@ -171,8 +156,11 @@ fp_result_t fingerprint_enroll(uint8_t id);
 fp_result_t fp_delete(uint8_t id);
 
 /**
- * @brief Empty the entire fingerprint library.
- * @details Sends the EMPTY command to the sensor.
+ * @brief Empty the fingerprint library by deleting all stored templates.
+ *
+ * @param[in] None
+ * @param[out] None
+ *
  * @return fp_result_t structure containing the status and confirmation code.
  */
 fp_result_t fp_empty_library(void);
@@ -185,13 +173,15 @@ fp_result_t fp_empty_library(void);
 fp_result_t fp_search();
 
 /**
- * @brief Read the number of stored fingerprint templates.
- * @details Sends the TEMPLATE_COUNT command to the sensor.
- * @return Number of templates on success, -1 on failure.
+ * @brief Read the number of stored fingerprint templates in the library.
+ * @param[in] None
+ * @param[out] temp_nums* Pointer to a variable where the number of templates will be stored.
+ *
+ * @return fp_result_t structure containing the status and confirmation code.
  */
-fp_status_t fp_read_temp_num();
+fp_result_t fp_read_temp_num(uint16_t* temp_nums);
 
-fp_status_t fp_find_smallest_index();
+fp_result_t fp_find_smallest_index();
 
 #ifdef __cplusplus
 }

@@ -85,18 +85,19 @@ static uint32_t fp_get_u32(const uint8_t *buf);
  * @param[in] content Pointer to the command content to be sent.
  * @param[in] content_len Length of the command content in bytes.
  *
- * @return fp_result_t structure containing the status and confirmation code.
+ * @return fp_status_t structure containing the status.
  */
-static fp_result_t fp_send_cmd(const uint8_t* content, uint16_t content_len);
+static fp_status_t fp_send_cmd(const uint8_t* content, uint16_t content_len);
 
 /**
  * @brief Read the acknowledgment packet from the fingerprint sensor.
  *
- * @param[in] instruction_code The instruction code of the command that was sent.
+ * @param[in] None
+ * @param[out] ack Pointer to the buffer where the acknowledgment packet will be stored.
  *
- * @return fp_result_t structure containing the status and confirmation code.
+ * @return fp_status_t structure containing the status.
  */
-static fp_result_t fp_read_ack(uint8_t instruction_code);
+static fp_status_t fp_read_ack(uint8_t* ack);
 
 /******************************************************************************
  * Global Functions
@@ -127,64 +128,178 @@ bool fingerprint_init(void)
 
 fp_result_t get_img(void)
 {
-    uint8_t content[] = {FP_CMD_GET_IMAGE};
+    // initialize the result structure with default values
+    fp_result_t result = {FP_STATUS_OK, FP_INVALID_CONFIRMATION_CODE};
     
-    fp_result_t result = fp_send_cmd(content, sizeof(content));
-    if (result.status != FP_STATUS_OK) {
+    uint8_t content[] = {FP_CMD_GET_IMAGE};
+
+    // send the command to the fingerprint sensor
+    fp_status_t send_status = fp_send_cmd(content, sizeof(content));
+    if (send_status != FP_STATUS_OK) {
+        result.status = send_status;
         return result;
     }
-    
-    return fp_read_ack(FP_CMD_GET_IMAGE);
+
+    // read the acknowledgment packet from the fingerprint sensor
+    uint8_t ack[FP_ACK_PACKET_MAX_SIZE];
+    fp_status_t read_status = fp_read_ack(ack);
+    if(read_status != FP_STATUS_OK) {
+        result.status = read_status;
+        return result;
+    }
+
+    // store the confirmation code from the acknowledgment packet
+    result.confirmation_code = ack[9];
+
+    return result;
 }
 
 fp_result_t img_to_char(fp_buffer_id_t buffer_id)
 {
+    // initialize the result structure with default values
+    fp_result_t result = {FP_STATUS_OK, FP_INVALID_CONFIRMATION_CODE};
+
     uint8_t content[] = {FP_CMD_IMAGE_TO_CHAR, (uint8_t)buffer_id};
 
-    fp_result_t result = fp_send_cmd(content, sizeof(content));
-    if (result.status != FP_STATUS_OK) {
+    // send the command to the fingerprint sensor
+    fp_status_t send_status = fp_send_cmd(content, sizeof(content));
+    if (send_status != FP_STATUS_OK) {
+        result.status = send_status;
         return result;
     }
-    
-    return fp_read_ack(FP_CMD_IMAGE_TO_CHAR);
+
+    // read the acknowledgment packet from the fingerprint sensor
+    uint8_t ack[FP_ACK_PACKET_MAX_SIZE];
+    fp_status_t read_status = fp_read_ack(ack);
+    if(read_status != FP_STATUS_OK) {
+        result.status = read_status;
+        return result;
+    }
+
+    // store the confirmation code from the acknowledgment packet
+    result.confirmation_code = ack[9];
+
+    return result;
 }
 
 fp_result_t create_model(void)
 {
+    // initialize the result structure with default values
+    fp_result_t result = {FP_STATUS_OK, FP_INVALID_CONFIRMATION_CODE};
+
     uint8_t content[] = {FP_CMD_CREATE_MODEL};
 
-    fp_result_t result = fp_send_cmd(content, sizeof(content));
-    if (result.status != FP_STATUS_OK) {
+    // send the command to the fingerprint sensor
+    fp_status_t send_status = fp_send_cmd(content, sizeof(content));
+    if (send_status != FP_STATUS_OK) {
+        result.status = send_status;
         return result;
     }
-    
-    return fp_read_ack(FP_CMD_CREATE_MODEL);
+
+    // read the acknowledgment packet from the fingerprint sensor
+    uint8_t ack[FP_ACK_PACKET_MAX_SIZE];
+    fp_status_t read_status = fp_read_ack(ack);
+    if(read_status != FP_STATUS_OK) {
+        result.status = read_status;
+        return result;
+    }
+
+    // store the confirmation code from the acknowledgment packet
+    result.confirmation_code = ack[9];
+
+    return result;
 }   
 
 fp_result_t store_model(uint16_t fp_id)
 {
+    // initialize the result structure with default values
+    fp_result_t result = {FP_STATUS_OK, FP_INVALID_CONFIRMATION_CODE};
+
     // Command + Buffer ID + Fingerprint ID (2 bytes)
     uint8_t content[] = {FP_CMD_STORE_MODEL, FP_CHAR_BUFFER_1, fp_id >> 8, fp_id & 0xFF}; 
 
-    fp_result_t result = fp_send_cmd(content, sizeof(content));
-    if (result.status != FP_STATUS_OK) {
+    // send the command to the fingerprint sensor
+    fp_status_t send_status = fp_send_cmd(content, sizeof(content));
+    if (send_status != FP_STATUS_OK) {
+        result.status = send_status;
         return result;
     }
-    
-    return fp_read_ack(FP_CMD_STORE_MODEL);
+
+    // read the acknowledgment packet from the fingerprint sensor
+    uint8_t ack[FP_ACK_PACKET_MAX_SIZE];
+    fp_status_t read_status = fp_read_ack(ack);
+    if(read_status != FP_STATUS_OK) {
+        result.status = read_status;
+        return result;
+    }
+
+    // store the confirmation code from the acknowledgment packet
+    result.confirmation_code = ack[9];
+
+    return result;
 }
 
 fp_result_t fp_empty_library(void)
 {
+    // initialize the result structure with default values
+    fp_result_t result = {FP_STATUS_OK, FP_INVALID_CONFIRMATION_CODE};
+
     uint8_t content[] = {FP_CMD_EMPTY_LIBRARY};
 
-    fp_result_t result = fp_send_cmd(content, sizeof(content));
-    if (result.status != FP_STATUS_OK) {
+    // send the command to the fingerprint sensor
+    fp_status_t send_status = fp_send_cmd(content, sizeof(content));
+    if (send_status != FP_STATUS_OK) {
+        result.status = send_status;
         return result;
     }
-    
-    return fp_read_ack(FP_CMD_EMPTY_LIBRARY);
+
+    // read the acknowledgment packet from the fingerprint sensor
+    uint8_t ack[FP_ACK_PACKET_MAX_SIZE];
+    fp_status_t read_status = fp_read_ack(ack);
+    if(read_status != FP_STATUS_OK) {
+        result.status = read_status;
+        return result;
+    }
+
+    // store the confirmation code from the acknowledgment packet
+    result.confirmation_code = ack[9];
+
+    return result;
 }
+
+fp_result_t fp_read_temp_num(uint16_t* temp_nums)
+{
+    // initialize the result structure with default values
+    fp_result_t result = {FP_STATUS_OK, FP_INVALID_CONFIRMATION_CODE};
+
+    uint8_t content[] = {FP_CMD_TEMPLATE_COUNT};
+
+    // send the command to the fingerprint sensor
+    fp_status_t send_status = fp_send_cmd(content, sizeof(content));
+    if (send_status != FP_STATUS_OK) {
+        result.status = send_status;
+        return result;
+    }
+
+    // read the acknowledgment packet from the fingerprint sensor
+    uint8_t ack[FP_ACK_PACKET_MAX_SIZE];
+    fp_status_t read_status = fp_read_ack(ack);
+    if(read_status != FP_STATUS_OK) {
+        result.status = read_status;
+        return result;
+    }
+
+    // store the confirmation code from the acknowledgment packet
+    result.confirmation_code = ack[9];
+
+    // Only parse template number when command succeeded
+    if(result.confirmation_code == 0x00u) {
+        *temp_nums = get_u16(&ack[10]);
+    }
+
+    return result;
+}
+
 
 /******************************************************************************
  * Local Helper Functions
@@ -213,20 +328,16 @@ static uint32_t fp_get_u32(const uint8_t *buf)
     return ((uint32_t)buf[0] << 24) | ((uint32_t)buf[1] << 16) | ((uint32_t)buf[2] << 8) | buf[3];
 }
 
-static fp_result_t fp_send_cmd(const uint8_t* content, uint16_t content_len)
+static fp_status_t fp_send_cmd(const uint8_t* content, uint16_t content_len)
 {
-    fp_result_t result = {FP_STATUS_OK, FP_INVALID_CONFIRMATION_CODE, FP_INVALID_FINGERPRINT_ID}; // Initialize result with default values
-
     // Check if the content pointer is valid
     if(content == NULL) {
-        result.status = FP_ERR_INVALID_CONTENT;
-        return result;
+        return FP_ERR_INVALID_CONTENT;
     }
 
     // Check if the content length is valid
     if(content_len == 0 || (content_len + 11u) > FP_CMD_PACKET_MAX_SIZE) {
-        result.status = FP_ERR_INVALID_CONTENT_LENGTH;
-        return result;
+        return FP_ERR_INVALID_CONTENT_LENGTH;
     }
 
     // create a buffer to hold the entire packet to be sent
@@ -268,50 +379,39 @@ static fp_result_t fp_send_cmd(const uint8_t* content, uint16_t content_len)
     // UART send the packet
     if(usart_write_buffer_wait(&fp_usart_instance, cmd, index) != STATUS_OK)
     {
-        result.status = FP_ERR_UART_SEND;
-        return result;
+        return FP_ERR_UART_SEND;
     }
 
-    return result;
+    return FP_STATUS_OK;
 }
 
-static fp_result_t fp_read_ack(uint8_t instruction_code)
+static fp_status_t fp_read_ack(uint8_t* ack)
 {
-    fp_result_t result = {FP_STATUS_OK, FP_INVALID_CONFIRMATION_CODE, FP_INVALID_FINGERPRINT_ID};
-
-    // check if the instruction_code is valid
-    if(instruction_code == 0x00u || instruction_code > 0x35u) {
-        result.status = FP_ERR_INVALID_INSTRUCTION_CODE;
-        return result;
+    // Check if the ack pointer is valid
+    if(ack == NULL) {
+        return FP_ERR_INVALID_CONTENT;
     }
-
-    // create a buffer to hold the acknowledgment packet
-    uint8_t ack[FP_ACK_PACKET_MAX_SIZE];
 
     // read the first 9 bytes of the acknowledgment packet from the fingerprint sensor
     if (usart_read_buffer_wait(&fp_usart_instance, ack, 9u) != STATUS_OK) {
-        result.status = FP_ERR_UART_RECEIVE;
-        return result;
+        return FP_ERR_UART_RECEIVE;
     }
 
     // check if the acknowledgment packet header is valid
     if((fp_get_u16(&ack[0])) != FP_HEADER) {
-        result.status = FP_ERR_HEADER;
-        return result;
+        return FP_ERR_HEADER;
     }
 
     // check if the acknowledgment packet address is valid
     if((fp_get_u32(&ack[2])) != FP_ADDRESS) {
-        result.status = FP_ERR_ADDRESS;
-        return result;
+        return FP_ERR_ADDRESS;
     }
 
     uint16_t package_length = fp_get_u16(&ack[7]);
 
     // read the remaining bytes of the acknowledgment packet from the fingerprint sensor
     if (usart_read_buffer_wait(&fp_usart_instance, &ack[9], package_length) != STATUS_OK) {
-        result.status = FP_ERR_UART_RECEIVE;
-        return result;
+        return FP_ERR_UART_RECEIVE;
     }
 
     // check if the acknowledgment packets correct
@@ -322,17 +422,8 @@ static fp_result_t fp_read_ack(uint8_t instruction_code)
     }
 
     if(received_checksum != (fp_get_u16(&ack[total_length - 2u]))) {
-        result.status = FP_ERR_CHECKSUM;
-        return result;
+        return FP_ERR_CHECKSUM;
     }
 
-    // extract the instruction code from the acknowledgment packet
-    result.confirmation_code = ack[0];
-    
-    // for store operation
-    if(instruction_code == FP_CMD_SEARCH) {
-        result.page_id = fp_get_u16(&ack[1]);
-    }
-
-    return result;
+    return FP_STATUS_OK;
 }
