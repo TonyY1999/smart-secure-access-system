@@ -1,6 +1,6 @@
 /**************************************************************************//**
  * @file      ring_buffer.h
- * @brief     Ring buffer implementation for ESE516 with Doxygen-style comments
+ * @brief     Ring buffer implementation
  * @author    Tony Yan
  * @date      2026-09-10
  ******************************************************************************/
