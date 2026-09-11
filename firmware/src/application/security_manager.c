@@ -1,6 +1,6 @@
 /**************************************************************************//**
- * @file      access_control_task.c
- * @brief     Source file for access_control_task.c, defining the implementation for the access control task in the smart secure access system.
+ * @file      template.c
+ * @brief     Template for ESE516 with Doxygen-style comments
  * @author    Eduardo Garcia
  * @date      2020-01-01
  ******************************************************************************/
@@ -8,64 +8,26 @@
 /******************************************************************************
  * Includes
  ******************************************************************************/
-#include "access_control_task.h"
-#include "access_manager.h"
 
 /******************************************************************************
  * Defines
  ******************************************************************************/
-#define FINGERPRINT_SCAN_DELAY_MS 200
-#define FINGERPRINT_QUEUE_WAIT_MS 50
 
 /******************************************************************************
  * Variables
  ******************************************************************************/
-static QueueHandle_t access_queue = NULL;
 
 /******************************************************************************
  * Forward Declarations
  ******************************************************************************/
-static void fingerprint_send_event(access_event_type_t type, int finger_id);
 
 /******************************************************************************
  * Global Functions
  ******************************************************************************/
-void fingerprint_task(void *pvParameters){
-	// init fingerprint module
-	fingerprint_init();
-	
-	while (1)
-	{
-		if(xQueueReceive(access_queue, &access_request_t, pdMS_TO_TICKS(FINGERPRINT_SCAN_DELAY_MS)) == pdTRUE) {
-			access_manager_process(&access_request_t);
-		}
-
-		vTaskDelay(pdMS_TO_TICKS(FINGERPRINT_SCAN_DELAY_MS));
-	}
-}
 
 /******************************************************************************
  * Local Functions
  ******************************************************************************/
- static void fingerprint_send_event(access_event_type_t type, int finger_id)
-{
-    access_event_t event;
-    QueueHandle_t queue;
-
-    event.type = type;
-    event.finger_id = finger_id;
-
-    queue = access_control_get_queue();
-
-    if (queue != NULL)
-    {
-        xQueueSend(
-            queue,
-            &event,
-            pdMS_TO_TICKS(FINGERPRINT_QUEUE_WAIT_MS)
-        );
-    }
-}
 
 /******************************************************************************
  * Callback Functions

@@ -74,10 +74,6 @@
 #include <dma.h>
 #include <dma_crc.h>
 
-// From module: Debug Print (FreeRTOS)
-#include <dbg_print.h>
-#include <quick_start_basic/qs_dbg_print_basic.h>
-
 // From module: Delay routines
 #include <delay.h>
 
@@ -187,6 +183,9 @@
 #include <samd/sleepmgr.h>
 #include <sleepmgr.h>
 
+// From module: Standard serial I/O (stdio)
+#include <stdio_serial.h>
+
 // From module: Supported ports of FatFS
 #include <diskio.h>
 
@@ -199,6 +198,6 @@
 #include <tcc_callback.h>
 
 // From module: USART - Serial interface- SAM implementation for devices with only USART
-// #include <serial.h>
+#include <serial.h>
 
 #endif // ASF_H

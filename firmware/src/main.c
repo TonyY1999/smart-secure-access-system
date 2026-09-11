@@ -42,17 +42,6 @@ void vApplicationStackOverflowHook(void);
 void vApplicationMallocFailedHook(void);
 void vApplicationDaemonTaskStartupHook(void);
 
-static void StartTasks(void);  //!< Initial task used to initialize HW before other tasks are initialized
-
-static void log_test_task(void *pvParameters)
-{
-    (void)pvParameters;
-
-    while (1) {
-        servo_unlock();
-    }
-}
-
 /**
  * @brief Main application function.
  * Application entry point.

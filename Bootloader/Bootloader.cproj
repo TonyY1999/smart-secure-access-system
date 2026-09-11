@@ -13,7 +13,7 @@
     <OutputFileExtension>.elf</OutputFileExtension>
     <OutputDirectory>$(MSBuildProjectDirectory)\$(Configuration)</OutputDirectory>
     <AssemblyName>SD_MMC_EXAMPLE22</AssemblyName>
-    <Name>Bootloader</Name>
+    <Name>bootloader</Name>
     <RootNamespace>SD_MMC_EXAMPLE22</RootNamespace>
     <ToolchainFlavour>Native</ToolchainFlavour>
     <KeepTimersRunning>true</KeepTimersRunning>
