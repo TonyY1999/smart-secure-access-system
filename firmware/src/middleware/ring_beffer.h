@@ -70,16 +70,6 @@ bool ring_buffer_put(ring_buffer_t *rb, uint8_t data);
 bool ring_buffer_get(ring_buffer_t *rb, uint8_t *data);
 
 /**
- * @brief Peeks at the first byte of data in the ring buffer without removing it. If the buffer is empty, the function will return false.
- *
- * @param[in] rb Pointer to the ring buffer structure.
- * @param[out] data Pointer to the location where the peeked data will be stored.
- *
- * @return Returns true if data was successfully peeked from the buffer, false if the buffer is empty.
- */
-bool ring_buffer_peek(const ring_buffer_t *rb, uint8_t *data);
-
-/**
  * @brief Checks if the ring buffer is empty.
  *
  * @param[in] rb Pointer to the ring buffer structure.
@@ -96,24 +86,6 @@ bool ring_buffer_is_empty(const ring_buffer_t *rb);
  * @return Returns true if the buffer is full, false otherwise.
  */
 bool ring_buffer_is_full(const ring_buffer_t *rb);
-
-/**
- * @brief Gets the number of bytes of data currently in the ring buffer.
- *
- * @param[in] rb Pointer to the ring buffer structure.
- *
- * @return The number of bytes of data currently in the buffer.
- */
-size_t ring_buffer_count(const ring_buffer_t *rb);
-
-/**
- * @brief Clears all data from the ring buffer, effectively resetting it to an empty state.
- *
- * @param[in] rb Pointer to the ring buffer structure.
- *
- * @return None
- */
-void ring_buffer_clear(ring_buffer_t *rb);
 
 #ifdef __cplusplus
 }
