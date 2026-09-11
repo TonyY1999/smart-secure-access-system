@@ -15,6 +15,7 @@ extern "C" {
 /******************************************************************************
  * Includes
  ******************************************************************************/
+#include <stdint.h>
 
 /******************************************************************************
  * Defines
@@ -25,7 +26,8 @@ extern "C" {
  * Structures and Enumerations
  ******************************************************************************/
 typedef struct {
-    uint8_t *buffer;
+    uint8_t* buffer;
+    size_t capacity;
     size_t head;
     size_t tail;
     size_t count;
@@ -38,11 +40,13 @@ typedef struct {
  * @brief Initializes a ring buffer structure. This function sets the head, tail, and count of the ring buffer to zero, effectively resetting it to an empty state.
  *
  * @param[in] rb Pointer to the ring buffer structure to be initialized.
- * @param[out] None 
+ * @param[in] buffer Pointer to the buffer array to be used for the ring buffer.
+ * @param[in] capacity The maximum number of elements the ring buffer can hold.
+ * @param[out] None
  *
- * @return None
+ * @return Returns true if the ring buffer was successfully initialized, false if the parameters are invalid (e.g., NULL pointer or zero capacity).
  */
-void ring_buffer_init(ring_buffer_t* rb);
+bool ring_buffer_init(ring_buffer_t* rb, uint8_t* buffer, size_t capacity);
 
 /**
  * @brief Pushes a byte of data into the ring buffer. If the buffer is full, the function will return false, indicating that the push operation failed.
@@ -53,7 +57,7 @@ void ring_buffer_init(ring_buffer_t* rb);
  *
  * @return Returns true if the data was successfully pushed into the buffer, false if the buffer is full.
  */
-bool ring_buffer_push(ring_buffer_t *rb, uint8_t data);
+bool ring_buffer_put(ring_buffer_t *rb, uint8_t data);
 
 /**
  * @brief Pops a byte of data from the ring buffer. If the buffer is empty, the function will return false, indicating that the pop operation failed.
@@ -63,7 +67,7 @@ bool ring_buffer_push(ring_buffer_t *rb, uint8_t data);
  *
  * @return Returns true if data was successfully popped from the buffer, false if the buffer is empty.
  */
-bool ring_buffer_pop(ring_buffer_t *rb, uint8_t *data);
+bool ring_buffer_get(ring_buffer_t *rb, uint8_t *data);
 
 /**
  * @brief Peeks at the first byte of data in the ring buffer without removing it. If the buffer is empty, the function will return false.
