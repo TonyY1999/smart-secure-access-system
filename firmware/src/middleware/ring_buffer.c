@@ -37,6 +37,8 @@ bool ring_buffer_init(ring_buffer_t* rb, uint8_t* buffer, size_t capacity)
     rb -> head = 0;
     rb -> tail = 0;
     rb -> count = 0;
+
+    return true;
 }
 
 bool ring_buffer_put(ring_buffer_t *rb, uint8_t data)
