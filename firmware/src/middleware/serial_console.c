@@ -24,40 +24,43 @@
 static struct usart_module sc_usart_instance;
 
 // Ring buffer structures and real buffers for RX and TX data
-ring_buffer_t* rx_ring;
-ring_buffer_t* tx_ring;
+static ring_buffer_t rx_ring;
+static ring_buffer_t tx_ring;
 static char rx_storage[RX_BUFFER_SIZE];
 static char tx_storage[TX_BUFFER_SIZE];
 
+// Variables to hold the latest received and transmitted characters
+static char latest_rx;
+static char latest_tx;
 
-char latestRx;
-char latestTx;
-
+// Current debug log level, initialized to LOG_INFO_LVL
 log_level_t current_debug_level = LOG_INFO_LVL;
 
+// Semaphore handle for RX operations
 static SemaphoreHandle_t xRxSemaphore = NULL;
 
 /******************************************************************************
  * Forward Declarations
  ******************************************************************************/
 // Local function declarations for USART configuration and callback setup
- static bool config_usart(void);
+static bool config_usart(void);
 static void config_usart_callbacks(void);
 
 // Callback function declarations for USART read and write operations
-void usart_write_callback(struct usart_module *const usart_module);
-void usart_read_callback(struct usart_module *const usart_module);
+void usart_write_callback(struct usart_module* const usart_module);
+void usart_read_callback(struct usart_module* const usart_module);
 
 /******************************************************************************
  * Global Functions
  ******************************************************************************/
-void serial_console_init(void) {
+void serial_console_init(void)
+{
     // initialize ring buffers for RX and TX data
-    if(!ring_buffer_init(rx_ring, rx_storage, RX_BUFFER_SIZE)) {
+    if(!ring_buffer_init(&rx_ring, (uint8_t*)rx_storage, RX_BUFFER_SIZE)) {
         return;
     }
 
-    if(!ring_buffer_init(tx_ring, tx_storage, TX_BUFFER_SIZE)) {
+    if(!ring_buffer_init(&tx_ring, (uint8_t*)tx_storage, TX_BUFFER_SIZE)) {
         return;
     }
 
@@ -66,52 +69,61 @@ void serial_console_init(void) {
         return;
     }
 
-    config_usart_callbacks();
-
-    usart_read_buffer_job(&sc_usart_instance, (uint8_t *)&latestRx, 1);
-
+    // create a binary semaphore for RX operations
     xRxSemaphore = xSemaphoreCreateBinary();
     if (xRxSemaphore == NULL) {
-        SerialConsoleWriteString("ERROR: Could not create RX semaphore!\r\n");
+        usart_disable(&sc_usart_instance);
+        return;
     }
+
+    // configure USART callbacks for read and write operations
+    config_usart_callbacks();
+
+    usart_read_buffer_job(&sc_usart_instance, (uint8_t*) &latest_rx, 1);
 }
 
-void DeinitializeSerialConsole(void) {
+void serial_console_deinit(void)
+{
     usart_disable(&sc_usart_instance);
 }
 
-void SerialConsoleWriteString(const char *string) {
+void SerialConsoleWriteString(const char *string) 
+{
     vTaskSuspendAll();
     if (string != NULL) {
         for (size_t i = 0; i < strlen(string); i++) {
-            circular_buf_put(tx_ring, string[i]);
+            ring_buffer_put(&tx_ring, string[i]);
         }
 
         if (usart_get_job_status(&sc_usart_instance, USART_TRANSCEIVER_TX) == STATUS_OK) {
-            if (circular_buf_get(tx_ring, (uint8_t *)&latestTx) == 0) {
-                usart_write_buffer_job(&sc_usart_instance, (uint8_t *)&latestTx, 1);
+            if (ring_buffer_get(&tx_ring, (uint8_t*) &latest_tx) == 0) {
+                usart_write_buffer_job(&sc_usart_instance, (uint8_t*) &latest_tx, 1);
             }
         }
     }
     xTaskResumeAll();
 }
 
-int SerialConsoleReadCharacter(uint8_t *rxChar) {
+int SerialConsoleReadCharacter(uint8_t *rxChar) 
+{
     vTaskSuspendAll();
     int result = circular_buf_get(rx_ring, rxChar);
     xTaskResumeAll();
     return result;
 }
 
-enum eDebugLogLevels getLogLevel(void) {
+log_level_t getLogLevel(void) 
+{
     return current_debug_level;
 }
 
-void setLogLevel(enum eDebugLogLevels debugLevel) {
+void setLogLevel(log_level_t debugLevel) 
+{
     current_debug_level = debugLevel;
 }
 
-void LogMessage(enum eDebugLogLevels level, const char *format, ...) {
+void LogMessage(enum eDebugLogLevels level, const char *format, ...) 
+{
     if (level < current_debug_level || level == LOG_OFF_LVL) {
         return;
     }
@@ -135,25 +147,29 @@ void LogMessage(enum eDebugLogLevels level, const char *format, ...) {
     SerialConsoleWriteString("\r\n");
 }
 
-void LogMessageDebug(const char *format, ...) {
+void LogMessageDebug(const char *format, ...) 
+{
     va_list args;
     va_start(args, format);
     LogMessage(LOG_DEBUG_LVL, format, args);
     va_end(args);
 }
 
-SemaphoreHandle_t GetSerialRxSemaphore(void) {
+SemaphoreHandle_t GetSerialRxSemaphore(void) 
+{
     return xRxSemaphore;
 }
 
-struct usart_module *GetUsartModule(void) {
+struct usart_module *GetUsartModule(void) 
+{
     return &sc_usart_instance;
 }
 
 /******************************************************************************
  * Local Functions
  ******************************************************************************/
-static bool config_usart(void) {
+static bool config_usart(void) 
+{
     struct usart_config sc_usart_config;
     usart_get_config_defaults(&sc_usart_config);
 
@@ -172,7 +188,8 @@ static bool config_usart(void) {
     return true;
 }
 
-static void config_usart_callbacks(void) {
+static void config_usart_callbacks(void) 
+{
     usart_register_callback(&sc_usart_instance, usart_write_callback, USART_CALLBACK_BUFFER_TRANSMITTED);
     usart_register_callback(&sc_usart_instance, usart_read_callback, USART_CALLBACK_BUFFER_RECEIVED);
     usart_enable_callback(&sc_usart_instance, USART_CALLBACK_BUFFER_TRANSMITTED);
@@ -182,20 +199,25 @@ static void config_usart_callbacks(void) {
 /******************************************************************************
  * Callback Functions
  ******************************************************************************/
-void usart_write_callback(struct usart_module *const usart_module) {
-    if (circular_buf_get(tx_ring, (uint8_t *)&latestTx) != -1) {
-        usart_write_buffer_job(&sc_usart_instance, (uint8_t *)&latestTx, 1);
+void usart_write_callback(struct usart_module* const usart_module) 
+{
+    if (ring_buffer_get(&tx_ring, (uint8_t*) &latest_tx)) {
+        usart_write_buffer_job(&sc_usart_instance, (uint8_t*) &latest_tx, 1);
     }
 }
 
-void usart_read_callback(struct usart_module *const usart_module) {
+void usart_read_callback(struct usart_module* const usart_module) 
+{
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
-    if (circular_buf_put2(rx_ring, latestRx) == 0) {
+    if (ring_buffer_put(&rx_ring, latest_rx)) {
         xSemaphoreGiveFromISR(xRxSemaphore, &xHigherPriorityTaskWoken);
     }
 
-    while (usart_read_buffer_job(&sc_usart_instance, (uint8_t *)&latestRx, 1) != STATUS_OK);
+    if(usart_read_buffer_job(usart_module, (uint8_t*) &latest_rx, 1) != STATUS_OK) {
+        // Handle error if needed
+        return;
+    }
 
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }

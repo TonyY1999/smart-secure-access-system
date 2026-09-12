@@ -41,7 +41,7 @@ bool ring_buffer_init(ring_buffer_t* rb, uint8_t* buffer, size_t capacity)
     return true;
 }
 
-bool ring_buffer_put(ring_buffer_t *rb, uint8_t data)
+bool ring_buffer_put(ring_buffer_t* rb, uint8_t data)
 {
     if(rb == NULL || rb->buffer == NULL)
     {
@@ -60,7 +60,7 @@ bool ring_buffer_put(ring_buffer_t *rb, uint8_t data)
     return true;
 }
 
-bool ring_buffer_get(ring_buffer_t *rb, uint8_t *data)
+bool ring_buffer_get(ring_buffer_t* rb, uint8_t* data)
 {
     if(rb == NULL || rb->buffer == NULL || data == NULL)
     {
@@ -79,7 +79,7 @@ bool ring_buffer_get(ring_buffer_t *rb, uint8_t *data)
     return true;
 }
 
-bool ring_buffer_is_empty(const ring_buffer_t *rb)
+bool ring_buffer_is_empty(const ring_buffer_t* rb) 
 {
     if(rb == NULL) {
         return false;

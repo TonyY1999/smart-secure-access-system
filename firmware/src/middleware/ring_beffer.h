@@ -57,7 +57,7 @@ bool ring_buffer_init(ring_buffer_t* rb, uint8_t* buffer, size_t capacity);
  *
  * @return Returns true if the data was successfully pushed into the buffer, false if the buffer is full.
  */
-bool ring_buffer_put(ring_buffer_t *rb, uint8_t data);
+bool ring_buffer_put(ring_buffer_t* rb, uint8_t data);
 
 /**
  * @brief Pops a byte of data from the ring buffer. If the buffer is empty, the function will return false, indicating that the pop operation failed.
@@ -67,7 +67,7 @@ bool ring_buffer_put(ring_buffer_t *rb, uint8_t data);
  *
  * @return Returns true if data was successfully popped from the buffer, false if the buffer is empty.
  */
-bool ring_buffer_get(ring_buffer_t *rb, uint8_t *data);
+bool ring_buffer_get(ring_buffer_t* rb, uint8_t* data);
 
 /**
  * @brief Checks if the ring buffer is empty.
@@ -76,7 +76,7 @@ bool ring_buffer_get(ring_buffer_t *rb, uint8_t *data);
  *
  * @return Returns true if the buffer is empty, false otherwise.
  */
-bool ring_buffer_is_empty(const ring_buffer_t *rb);
+bool ring_buffer_is_empty(const ring_buffer_t* rb);
 
 /**
  * @brief Checks if the ring buffer is full.
@@ -85,7 +85,7 @@ bool ring_buffer_is_empty(const ring_buffer_t *rb);
  *
  * @return Returns true if the buffer is full, false otherwise.
  */
-bool ring_buffer_is_full(const ring_buffer_t *rb);
+bool ring_buffer_is_full(const ring_buffer_t* rb);
 
 #ifdef __cplusplus
 }

@@ -41,16 +41,22 @@ typedef enum {
 /**
  * @brief Initializes the serial console for UART communication. This function sets up the USART hardware, configures the necessary callbacks, and initializes the ring buffers for both receiving and transmitting data. It also creates a semaphore for RX operations.
  *
- * @param[in] ...
- * @param[out] ...
+ * @param[in] None
+ * @param[out] None
  *
- * @return ...
+ * @return None
  */
-// Initializes UART + CLI logger
 void serial_console_init(void);
 
-// Deinitializes UART
-void DeinitializeSerialConsole(void);
+/**
+ * @brief Deinitializes the serial console, disabling the USART hardware and cleaning up any resources used for UART communication.
+ *
+ * @param[in] None
+ * @param[out] None
+ *
+ * @return None
+ */
+void serial_console_deinit(void);
 
 // Writes a string to TX buffer and sends to UART
 void SerialConsoleWriteString(const char *string);
